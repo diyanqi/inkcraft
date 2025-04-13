@@ -1,3 +1,5 @@
+'use client'
+
 import { Separator } from "@/components/ui/separator"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -16,10 +18,38 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card"
-import { Check } from "lucide-react"
+import { Check, ScanText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
+import { useState, useRef } from "react"
+
 export default function CreatePage() {
+    const [originalText, setOriginalText] = useState("")
+    const fileInputRef = useRef<HTMLInputElement>(null)
+
+    const handleOCR = async (file: File) => {
+        try {
+            const formData = new FormData()
+            formData.append('image', file)
+
+            const response = await fetch('https://api.nn.ci/ocr/file/json', {
+                method: 'POST',
+                body: formData
+            })
+
+            const data = await response.json()
+            console.log(data);
+            if (data.status === 200 && data.data) {
+                setOriginalText(data.data.join('\n'))
+            } else {
+                throw new Error('OCR识别失败')
+            }
+        } catch (error) {
+            console.error('OCR Error:', error)
+            alert('文字识别失败，请重试')
+        }
+    }
+
     return (
         <div className="flex flex-col gap-4 p-4 md:p-6">
             <h1 className="text-2xl font-bold tracking-tight">新建批改任务</h1>
@@ -42,7 +72,34 @@ export default function CreatePage() {
                         </div>
                         <div className="grid w-auto max-w-3xl gap-1.5">
                             <Label htmlFor="message-1" className="text-md">原题题干</Label>
-                            <Textarea placeholder="在这里输入原题题干…" id="message-2" className="max-h-[7lh]" />
+                            <Textarea 
+                                placeholder="在这里输入原题题干…" 
+                                id="message-2" 
+                                className="max-h-[7lh]"
+                                value={originalText}
+                                onChange={(e) => setOriginalText(e.target.value)}
+                            />
+                            <div className="flex justify-end">
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0]
+                                        if (file) handleOCR(file)
+                                    }}
+                                />
+                                <Button
+                                    type="button"
+                                    className="flex items-center gap-1 text-sm"
+                                    variant="outline"
+                                    onClick={() => fileInputRef.current?.click()}
+                                >
+                                    <ScanText/>
+                                    文字识别
+                                </Button>
+                            </div>
                         </div>
                         <div className="grid w-auto max-w-3xl gap-1.5">
                             <Label htmlFor="message-1" className="text-md">参考范文 <span className="text-sm text-muted-foreground">*可选</span></Label>
