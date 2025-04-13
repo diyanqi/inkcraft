@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "文匠 InkCraft - 优雅的写作工具",
+  title: "文酱 InkCraft - 优雅的写作工具",
   description: "一款专注于优雅写作体验的现代化工具",
 };
 
