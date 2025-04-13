@@ -18,15 +18,24 @@ export default function CreatePage() {
 
             <h2 className="text-xl font-bold tracking-tight">1.&nbsp;&nbsp;题干录入</h2>
             <div className="grid w-auto max-w-3xl gap-1.5">
-                <Label htmlFor="message-1" className="text-md">1.1&nbsp;&nbsp;原题题干</Label>
+                <Label htmlFor="title" className="text-md">1.1&nbsp;&nbsp;标题 <span className="text-sm text-muted-foreground">*可选</span></Label>
+                <input
+                    type="text"
+                    id="title"
+                    placeholder="留白以自动生成"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                />
+            </div>
+            <div className="grid w-auto max-w-3xl gap-1.5">
+                <Label htmlFor="message-1" className="text-md">1.2&nbsp;&nbsp;原题题干</Label>
                 <Textarea placeholder="在这里输入原题题干…" id="message-2" className="max-h-[7lh]" />
             </div>
             <div className="grid w-auto max-w-3xl gap-1.5">
-                <Label htmlFor="message-1" className="text-md">1.2&nbsp;&nbsp;参考范文 <span className="text-sm text-muted-foreground">*可选</span></Label>
+                <Label htmlFor="message-1" className="text-md">1.3&nbsp;&nbsp;参考范文 <span className="text-sm text-muted-foreground">*可选</span></Label>
                 <Textarea placeholder="在这里输入参考范文…" id="message-2" className="max-h-[7lh]" />
             </div>
             <div className="grid w-auto max-w-3xl gap-1.5">
-                <Label htmlFor="message-1" className="text-md">1.3&nbsp;&nbsp;作文类型</Label>
+                <Label htmlFor="message-1" className="text-md">1.4&nbsp;&nbsp;作文类型</Label>
                 <Select>
                     <SelectTrigger className="w-[180px]">
                         <SelectValue placeholder="选择类型" />
@@ -49,16 +58,86 @@ export default function CreatePage() {
 
             <h2 className="text-xl font-bold tracking-tight">3.&nbsp;&nbsp;批改选项</h2>
             <div className="items-top flex space-x-2">
+                <Checkbox id="terms0" />
+                <div className="grid gap-1.5 leading-none">
+                    <label
+                        htmlFor="terms0"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                        题目解读
+                    </label>
+                    <p className="text-sm text-muted-foreground">
+                        通读全文、了解背景、分析线索、展现思路。
+                    </p>
+                </div>
+            </div>
+            <div className="items-top flex space-x-2">
                 <Checkbox id="terms1" />
                 <div className="grid gap-1.5 leading-none">
                     <label
                         htmlFor="terms1"
                         className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                     >
-                        Accept terms and conditions
+                        综合评价
                     </label>
                     <p className="text-sm text-muted-foreground">
-                        You agree to our Terms of Service and Privacy Policy.
+                        词汇语法、情节内容、细节表达、创新思维。
+                    </p>
+                </div>
+            </div>
+            <div className="items-top flex space-x-2">
+                <Checkbox id="terms2" />
+                <div className="grid gap-1.5 leading-none">
+                    <label
+                        htmlFor="terms2"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                        夯实基础
+                    </label>
+                    <p className="text-sm text-muted-foreground">
+                        拼写修正、语法修正。
+                    </p>
+                </div>
+            </div>
+            <div className="items-top flex space-x-2">
+                <Checkbox id="terms3" />
+                <div className="grid gap-1.5 leading-none">
+                    <label
+                        htmlFor="terms3"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                        进阶提升
+                    </label>
+                    <p className="text-sm text-muted-foreground">
+                        高级词汇替换、高级句式替换。
+                    </p>
+                </div>
+            </div>
+            <div className="items-top flex space-x-2">
+                <Checkbox id="terms4" />
+                <div className="grid gap-1.5 leading-none">
+                    <label
+                        htmlFor="terms4"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                        全文润色
+                    </label>
+                    <p className="text-sm text-muted-foreground">
+                        逐句评析、改文纯享。
+                    </p>
+                </div>
+            </div>
+            <div className="items-top flex space-x-2">
+                <Checkbox id="terms5" />
+                <div className="grid gap-1.5 leading-none">
+                    <label
+                        htmlFor="terms5"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                        提升方向
+                    </label>
+                    <p className="text-sm text-muted-foreground">
+                        总结点评、展望未来。
                     </p>
                 </div>
             </div>
