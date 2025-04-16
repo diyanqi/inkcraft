@@ -1,0 +1,82 @@
+import { NextRequest } from 'next/server';
+
+// 从环境变量获取API密钥数组
+const getApiKeys = () => {
+  const apiKeysString = process.env.OCR_API_KEYS || '';
+  return apiKeysString.split(',').filter(key => key.trim() !== '');
+};
+
+// 简单的轮询算法，每次请求使用不同的API密钥
+let currentKeyIndex = 0;
+const getNextApiKey = () => {
+  const apiKeys = getApiKeys();
+  if (apiKeys.length === 0) {
+    throw new Error('未配置OCR API密钥');
+  }
+  
+  const key = apiKeys[currentKeyIndex];
+  currentKeyIndex = (currentKeyIndex + 1) % apiKeys.length;
+  return key;
+};
+
+export async function POST(request: NextRequest) {
+  try {
+    const formData = await request.formData();
+    const file = formData.get('file') as File;
+    
+    if (!file) {
+      return new Response(JSON.stringify({ error: '未提供图片文件' }), { 
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+   // Add server-side file size check (e.g., 1MB)
+   const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1MB in bytes
+   if (file.size > MAX_FILE_SIZE) {
+     return new Response(JSON.stringify({ success: false, error: '图片文件过大，请确保小于1MB' }), {
+       status: 413, // Payload Too Large
+       headers: { 'Content-Type': 'application/json' }
+     });
+   }
+
+    // 创建新的FormData对象发送到OCR服务
+    const ocrFormData = new FormData();
+    ocrFormData.append('file', file);
+    ocrFormData.append('apikey', getNextApiKey());
+    ocrFormData.append('language', 'eng');
+    ocrFormData.append('isOverlayRequired', 'false');
+    ocrFormData.append('OCREngine', '2');
+    ocrFormData.append('detectOrientation', 'true');
+
+    const response = await fetch('https://api.ocr.space/parse/image', {
+      method: 'POST',
+      body: ocrFormData
+    });
+
+    const data = await response.json();
+    
+    // 处理OCR结果，去除所有换行
+    if (data.ParsedResults && data.ParsedResults.length > 0) {
+      const parsedText = data.ParsedResults[0].ParsedText;
+      // 去除所有换行符
+      const cleanedText = parsedText.replace(/\r\n|\n|\r/g, ' ');
+      
+      return Response.json({
+        success: true,
+        text: cleanedText
+      });
+    } else {
+      return Response.json({
+        success: false,
+        error: data.ErrorMessage || 'OCR识别失败'
+      }, { status: 422 });
+    }
+  } catch (error) {
+    console.error('OCR API Error:', error);
+    return Response.json({
+      success: false,
+      error: '服务器处理OCR请求时出错'
+    }, { status: 500 });
+  }
+}

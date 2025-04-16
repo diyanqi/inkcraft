@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import { Providers } from "./providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "文酱 InkCraft - 优雅的写作工具",
+  title: "墨灵 InkCraft - 优雅的写作工具",
   description: "一款专注于优雅写作体验的现代化工具",
 };
 
@@ -34,7 +35,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <Providers>
+            {children}
+          </Providers>
         </ThemeProvider>
       </body>
     </html>

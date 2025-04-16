@@ -20,35 +20,115 @@ import {
 } from "@/components/ui/card"
 import { Check, ScanText } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { toast } from "sonner"
 
 import { useState, useRef } from "react"
+import { Loader2 } from "lucide-react"
+import imageCompression from 'browser-image-compression';
 
 export default function CreatePage() {
+    // 状态管理
     const [originalText, setOriginalText] = useState("")
-    const fileInputRef = useRef<HTMLInputElement>(null)
+    const [referenceText, setReferenceText] = useState("")
+    const [essayText, setEssayText] = useState("")
+    const [isOriginalOCRLoading, setIsOriginalOCRLoading] = useState(false)
+    const [isReferenceOCRLoading, setIsReferenceOCRLoading] = useState(false)
+    const [isEssayOCRLoading, setIsEssayOCRLoading] = useState(false)
+    
+    // 文件输入引用
+    const originalFileInputRef = useRef<HTMLInputElement>(null)
+    const referenceFileInputRef = useRef<HTMLInputElement>(null)
+    const essayFileInputRef = useRef<HTMLInputElement>(null)
 
-    const handleOCR = async (file: File) => {
+    // OCR处理函数 - 使用后端API
+    const handleOCR = async (file: File, textSetter: (text: string) => void, loadingSetter: (loading: boolean) => void) => {
+        if (!file) return
+
+        const maxSizeMB = 1;
+        const options = {
+            maxSizeMB: maxSizeMB,
+            maxWidthOrHeight: 1920, // Optional: resize the image if needed
+            useWebWorker: true,
+        }
+
+        let processedFile = file;
+
         try {
-            const formData = new FormData()
-            formData.append('image', file)
+            loadingSetter(true)
 
-            const response = await fetch('https://api.nn.ci/ocr/file/json', {
+            // Check file size
+            if (file.size > maxSizeMB * 1024 * 1024) {
+                toast.info(`图片大小超过 ${maxSizeMB}MB，正在尝试压缩...`);
+                try {
+                    processedFile = await imageCompression(file, options);
+                    toast.success('图片压缩成功');
+                } catch (compressionError) {
+                    console.error('Image compression error:', compressionError);
+                    toast.error('图片压缩失败，请尝试上传更小的图片');
+                    loadingSetter(false);
+                    return; // Stop if compression fails
+                }
+            }
+
+            const formData = new FormData()
+            formData.append('file', processedFile, file.name) // Use processedFile but keep original name
+
+            // 使用后端API处理OCR请求
+            const response = await fetch('/api/ocr', {
                 method: 'POST',
                 body: formData
             })
 
             const data = await response.json()
-            console.log(data);
-            if (data.status === 200 && data.data) {
-                setOriginalText(data.data.join('\n'))
+
+            if (response.ok && data.success) {
+                // 设置文本（后端已经处理了换行符）
+                textSetter(data.text)
+                toast.success('文字识别成功')
             } else {
-                throw new Error('OCR识别失败')
+                 // Handle specific backend error for large files
+                if (response.status === 413) {
+                     toast.error(data.error || '图片文件过大，请压缩后重试');
+                } else {
+                    throw new Error(data.error || 'OCR识别失败')
+                }
             }
         } catch (error) {
             console.error('OCR Error:', error)
-            alert('文字识别失败，请重试')
+            toast.error(`文字识别失败: ${error instanceof Error ? error.message : '请重试'}`)
+        } finally {
+            loadingSetter(false)
         }
     }
+
+    // 创建OCR按钮组件
+    const OCRButton = ({ 
+        isLoading, 
+        onClick 
+    }: { 
+        isLoading: boolean, 
+        onClick: () => void 
+    }) => (
+        <Button
+            type="button"
+            className="flex items-center gap-1 text-sm"
+            variant="outline"
+            disabled={isLoading}
+            onClick={onClick}
+        >
+            {isLoading ? (
+                <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    识别中...
+                </>
+            ) : (
+                <>
+                    <ScanText className="h-4 w-4" />
+                    文字识别
+                </>
+            )}
+        </Button>
+    )
 
     return (
         <div className="flex flex-col gap-4 p-4 md:p-6">
@@ -71,10 +151,10 @@ export default function CreatePage() {
                             />
                         </div>
                         <div className="grid w-auto max-w-3xl gap-1.5">
-                            <Label htmlFor="message-1" className="text-md">原题题干</Label>
+                            <Label htmlFor="original-text" className="text-md">原题题干</Label>
                             <Textarea 
                                 placeholder="在这里输入原题题干…" 
-                                id="message-2" 
+                                id="original-text" 
                                 className="max-h-[7lh]"
                                 value={originalText}
                                 onChange={(e) => setOriginalText(e.target.value)}
@@ -82,31 +162,56 @@ export default function CreatePage() {
                             <div className="flex justify-end">
                                 <input
                                     type="file"
-                                    ref={fileInputRef}
+                                    ref={originalFileInputRef}
                                     className="hidden"
                                     accept="image/*"
                                     onChange={(e) => {
                                         const file = e.target.files?.[0]
-                                        if (file) handleOCR(file)
+                                        if (file) handleOCR(file, setOriginalText, setIsOriginalOCRLoading)
+                                        // Reset file input value to allow re-selecting the same file
+                                        if (e.target) {
+                                            e.target.value = ''
+                                        }
                                     }}
                                 />
-                                <Button
-                                    type="button"
-                                    className="flex items-center gap-1 text-sm"
-                                    variant="outline"
-                                    onClick={() => fileInputRef.current?.click()}
-                                >
-                                    <ScanText/>
-                                    文字识别
-                                </Button>
+                                <OCRButton 
+                                    isLoading={isOriginalOCRLoading}
+                                    onClick={() => originalFileInputRef.current?.click()}
+                                />
                             </div>
                         </div>
                         <div className="grid w-auto max-w-3xl gap-1.5">
-                            <Label htmlFor="message-1" className="text-md">参考范文 <span className="text-sm text-muted-foreground">*可选</span></Label>
-                            <Textarea placeholder="在这里输入参考范文…" id="message-2" className="max-h-[7lh]" />
+                            <Label htmlFor="reference-text" className="text-md">参考范文 <span className="text-sm text-muted-foreground">*可选</span></Label>
+                            <Textarea 
+                                placeholder="在这里输入参考范文…" 
+                                id="reference-text" 
+                                className="max-h-[7lh]" 
+                                value={referenceText}
+                                onChange={(e) => setReferenceText(e.target.value)}
+                            />
+                            <div className="flex justify-end">
+                                <input
+                                    type="file"
+                                    ref={referenceFileInputRef}
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0]
+                                        if (file) handleOCR(file, setReferenceText, setIsReferenceOCRLoading)
+                                        // Reset file input value to allow re-selecting the same file
+                                        if (e.target) {
+                                            e.target.value = ''
+                                        }
+                                    }}
+                                />
+                                <OCRButton 
+                                    isLoading={isReferenceOCRLoading}
+                                    onClick={() => referenceFileInputRef.current?.click()}
+                                />
+                            </div>
                         </div>
                         <div className="grid w-auto max-w-3xl gap-1.5">
-                            <Label htmlFor="message-1" className="text-md">作文类型</Label>
+                            <Label htmlFor="essay-type" className="text-md">作文类型</Label>
                             <Select>
                                 <SelectTrigger className="w-[180px]">
                                     <SelectValue placeholder="选择类型" />
@@ -129,8 +234,34 @@ export default function CreatePage() {
                     </CardHeader>
                     <CardContent className="grid gap-4">
                         <div className="grid w-full gap-1.5">
-                            <Label htmlFor="message-1" className="text-md">录入习作</Label>
-                            <Textarea placeholder="在这里输入你的作文…" id="message-2" className="max-h-[7lh]" />
+                            <Label htmlFor="essay-text" className="text-md">录入习作</Label>
+                            <Textarea 
+                                placeholder="在这里输入你的作文…" 
+                                id="essay-text" 
+                                className="max-h-[7lh]" 
+                                value={essayText}
+                                onChange={(e) => setEssayText(e.target.value)}
+                            />
+                            <div className="flex justify-end">
+                                <input
+                                    type="file"
+                                    ref={essayFileInputRef}
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0]
+                                        if (file) handleOCR(file, setEssayText, setIsEssayOCRLoading)
+                                        // Reset file input value to allow re-selecting the same file
+                                        if (e.target) {
+                                            e.target.value = ''
+                                        }
+                                    }}
+                                />
+                                <OCRButton 
+                                    isLoading={isEssayOCRLoading}
+                                    onClick={() => essayFileInputRef.current?.click()}
+                                />
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
