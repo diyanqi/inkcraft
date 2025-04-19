@@ -238,7 +238,7 @@ export default function CreatePage() {
                             <Textarea 
                                 placeholder="在这里输入你的作文…" 
                                 id="essay-text" 
-                                className="max-h-[7lh]" 
+                                className="max-h-[14lh]" 
                                 value={essayText}
                                 onChange={(e) => setEssayText(e.target.value)}
                             />
@@ -273,90 +273,20 @@ export default function CreatePage() {
                         <CardDescription>在这里自定义生成结果的展示内容。</CardDescription>
                     </CardHeader>
                     <CardContent className="grid gap-4">
-                        <Label className="text-md">内容设定</Label>
-                        <div className="items-top flex space-x-2">
-                            <Checkbox id="terms0" defaultChecked />
-                            <div className="grid gap-1.5 leading-none">
-                                <label
-                                    htmlFor="terms0"
-                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                                >
-                                    题目解读
-                                </label>
-                                <p className="text-sm text-muted-foreground">
-                                    通读全文、了解背景、分析线索、展现思路。
-                                </p>
-                            </div>
-                        </div>
-                        <div className="items-top flex space-x-2">
-                            <Checkbox id="terms1" defaultChecked />
-                            <div className="grid gap-1.5 leading-none">
-                                <label
-                                    htmlFor="terms1"
-                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                                >
-                                    综合评价
-                                </label>
-                                <p className="text-sm text-muted-foreground">
-                                    词汇语法、情节内容、细节表达、创新思维。
-                                </p>
-                            </div>
-                        </div>
-                        <div className="items-top flex space-x-2">
-                            <Checkbox id="terms2" defaultChecked />
-                            <div className="grid gap-1.5 leading-none">
-                                <label
-                                    htmlFor="terms2"
-                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                                >
-                                    夯实基础
-                                </label>
-                                <p className="text-sm text-muted-foreground">
-                                    拼写修正、语法修正。
-                                </p>
-                            </div>
-                        </div>
-                        <div className="items-top flex space-x-2">
-                            <Checkbox id="terms3" defaultChecked />
-                            <div className="grid gap-1.5 leading-none">
-                                <label
-                                    htmlFor="terms3"
-                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                                >
-                                    进阶提升
-                                </label>
-                                <p className="text-sm text-muted-foreground">
-                                    高级词汇替换、高级句式替换。
-                                </p>
-                            </div>
-                        </div>
-                        <div className="items-top flex space-x-2">
-                            <Checkbox id="terms4" defaultChecked />
-                            <div className="grid gap-1.5 leading-none">
-                                <label
-                                    htmlFor="terms4"
-                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                                >
-                                    全文润色
-                                </label>
-                                <p className="text-sm text-muted-foreground">
-                                    逐句评析、改文纯享。
-                                </p>
-                            </div>
-                        </div>
-                        <div className="items-top flex space-x-2">
-                            <Checkbox id="terms5" defaultChecked />
-                            <div className="grid gap-1.5 leading-none">
-                                <label
-                                    htmlFor="terms5"
-                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                                >
-                                    提升方向
-                                </label>
-                                <p className="text-sm text-muted-foreground">
-                                    总结点评、展望未来。
-                                </p>
-                            </div>
+                    <div className="grid w-auto max-w-3xl gap-1.5">
+                            <Label className="text-md">选择模型</Label>
+                            <Select defaultValue="gpt4">
+                                <SelectTrigger className="w-[180px]">
+                                    <SelectValue placeholder="选择模型" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="gpt4">GPT-4o</SelectItem>
+                                    <SelectItem value="llama">Meta Llama</SelectItem>
+                                    <SelectItem value="deepseek">Deepseek-v3</SelectItem>
+                                    <SelectItem value="gemini">Google Gemini</SelectItem>
+                                    <SelectItem value="qwen">通义千问</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
                         <div className="grid w-auto max-w-3xl gap-1.5">
                             <Label className="text-md">讲解语气 <span className="text-sm text-muted-foreground">*实验性</span></Label>

@@ -1,4 +1,12 @@
 import { NextRequest } from 'next/server';
+import { createOpenAI } from '@ai-sdk/openai';
+import { generateText } from 'ai';
+
+const openai = createOpenAI({
+  baseURL: process.env.OPENAI_API_BASEURL || '',
+  apiKey: process.env.OPENAI_API_APIKEY || '',
+  compatibility: 'compatible',
+});
 
 // 从环境变量获取API密钥数组
 const getApiKeys = () => {
@@ -56,15 +64,36 @@ export async function POST(request: NextRequest) {
 
     const data = await response.json();
     
-    // 处理OCR结果，去除所有换行
     if (data.ParsedResults && data.ParsedResults.length > 0) {
       const parsedText = data.ParsedResults[0].ParsedText;
-      // 去除所有换行符
-      const cleanedText = parsedText.replace(/\r\n|\n|\r/g, ' ');
+      const cleanedText = parsedText;
+
+      // console.info(cleanedText);
       
+      // return Response.json({
+      //   success: true,
+      //   text: cleanedText
+      // });
+
+      const model = openai('@cf/meta/llama-3.1-8b-instruct-fast');
+      const { text } = await generateText({
+        model,
+        messages: [
+          {
+            role: 'system',
+            content: `The user will provide you with an OCR text from an answer sheet, which may contain garbled characters, recognition errors, extra characters, and non-answer information from the answer sheet itself. You need to analyze its content, correct it, and extract the accurate text, then output it directly, without any additional information or explanation like 'Here is the corrected and extracted text'.`,
+          },
+          {
+            role: 'user',
+            content: cleanedText,
+          },
+        ],
+        maxTokens: 2048,
+      });
+      // console.info(text);
       return Response.json({
         success: true,
-        text: cleanedText
+        text,
       });
     } else {
       return Response.json({
