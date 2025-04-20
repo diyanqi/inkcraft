@@ -81,14 +81,14 @@ export async function POST(request: NextRequest) {
         messages: [
           {
             role: 'system',
-            content: `The user will provide you with an OCR text from an answer sheet, which may contain garbled characters, recognition errors, extra characters, and non-answer information from the answer sheet itself. You need to analyze its content, correct it, and extract the accurate text, then output it directly, without any additional information or explanation like 'Here is the corrected and extracted text'.`,
+            content: `The user will provide you with an OCR text from an answer sheet or a paper, which may contain garbled characters, recognition errors, extra characters, and irrelevant information from the answer sheet or the paper itself. You need to analyze its content, correct it, and extract the accurate text, then output it directly, without any additional information or explanation like 'Here is the corrected and extracted text'.`,
           },
           {
             role: 'user',
             content: cleanedText,
           },
         ],
-        maxTokens: 2048,
+        maxTokens: 3096,
       });
       // console.info(text);
       return Response.json({
