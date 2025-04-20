@@ -47,7 +47,7 @@ const data = {
     },
     {
       title: "素材广场",
-      url: "#",
+      url: "/dashboard/material-square",
       icon: IconQuote,
     },
     {
