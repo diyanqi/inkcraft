@@ -52,7 +52,7 @@ const data = {
     },
     {
       title: "星选集",
-      url: "#",
+      url: "/dashboard/favorites",
       icon: IconMessage2Star,
     },
   ],
