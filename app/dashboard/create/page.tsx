@@ -441,7 +441,7 @@ export default function CreatePage() {
                             </>
                         )}
                         {imageSrc && croppingMode && (
-                            <div className="relative w-full h-[300px]">
+                            <div className="relative w-full max-w-md h-[300px]">
                                 <Cropper
                                     image={imageSrc}
                                     crop={{ x: 0, y: 0 }}
@@ -451,28 +451,30 @@ export default function CreatePage() {
                                     onCropComplete={handleCropComplete}
                                     onZoomChange={() => {}}
                                 />
-                                <div className="flex justify-between mt-4">
-                                    <Button
-                                        onClick={() => {
-                                            setImageSrc(null)
-                                            setCroppingMode(false)
-                                            openCamera()
-                                        }}
-                                        variant="ghost"
-                                    >
-                                        <RotateCcw className="w-4 h-4 mr-1" /> 重新拍摄
-                                    </Button>
-                                    <Button
-                                        onClick={handleConfirmCrop}
-                                        disabled={isOriginalOCRLoading || isReferenceOCRLoading || isEssayOCRLoading}
-                                    >
-                                        确认识别
-                                    </Button>
-                                </div>
                             </div>
                         )}
                     </div>
-                    <DrawerFooter>
+                    <DrawerFooter className="flex flex-row justify-end gap-2">
+                        {imageSrc && croppingMode ? (
+                            <>
+                                <Button
+                                    onClick={() => {
+                                        setImageSrc(null)
+                                        setCroppingMode(false)
+                                        openCamera()
+                                    }}
+                                    variant="ghost"
+                                >
+                                    <RotateCcw className="w-4 h-4 mr-1" /> 重新拍摄
+                                </Button>
+                                <Button
+                                    onClick={handleConfirmCrop}
+                                    disabled={isOriginalOCRLoading || isReferenceOCRLoading || isEssayOCRLoading}
+                                >
+                                    确认识别
+                                </Button>
+                            </>
+                        ) : null}
                         <DrawerClose>
                             <Button
                                 variant="outline"
