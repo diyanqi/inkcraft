@@ -22,7 +22,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Star } from 'lucide-react'
 import { IconStarFilled } from '@tabler/icons-react'
-import TiltedCard from '@/components/tilted-card'
+import TiltedCard from '@/components/animation/tilted-card'
 
 let mockMaterials = [
   {
@@ -105,17 +105,17 @@ export default function MaterialSquarePage() {
             imageSrc={material.image}
             altText={material.description}
             captionText={material.description}
-            containerHeight="300px"
-            containerWidth="300px"
-            imageHeight="300px"
-            imageWidth="300px"
+            // containerHeight="100%"
+            // containerWidth="100%"
+            // imageHeight="300px"
+            // imageWidth="300px"
             rotateAmplitude={6}
             scaleOnHover={1.05}
             showMobileWarning={false}
             showTooltip={true}
             displayOverlayContent={true}
             overlayContent={
-              <Card key={material.id} className="group overflow-hidden transition-all hover:shadow-lg w-65">
+              <Card key={material.id} className="group overflow-hidden transition-all hover:shadow-lg w-[135%]">
                 <CardHeader>
                   <CardTitle className="mb-2 truncate">{material.title}</CardTitle>
                   <CardDescription className="line-clamp-2">
