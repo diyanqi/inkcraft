@@ -80,7 +80,7 @@ export function LoginForm({
               </div>
               <div className="text-center text-sm">
                 还没有账户？{" "}
-                <a href="#" className="underline underline-offset-4">
+                <a href="/register" className="underline underline-offset-4">
                   立即注册
                 </a>
               </div>
