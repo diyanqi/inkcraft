@@ -305,3 +305,42 @@
 .next-button:active {
   background-color: #00d8ff;
 }
+
+.toaster {
+  --normal-bg: var(--background);
+  --normal-border: var(--border);
+  --normal-text: var(--foreground);
+  --success-bg: var(--background);
+  --success-border: var(--border);
+  --success-text: var(--foreground);
+  --error-bg: var(--background);
+  --error-border: var(--border);
+  --error-text: var(--foreground);
+  --toast-height: 3.5rem;
+  --toast-width: 356px;
+  --toast-border-radius: var(--radius-md);
+  --toast-font-size: 0.875rem;
+  --toast-padding: 0.75rem 1rem;
+}
+
+.toast {
+  min-height: var(--toast-height);
+  border-radius: var(--toast-border-radius);
+  padding: var(--toast-padding);
+  font-size: var(--toast-font-size);
+  border: 1px solid var(--normal-border);
+  background: var(--normal-bg);
+  color: var(--normal-text);
+}
+
+.toast[data-type="success"] {
+  border-color: var(--success-border);
+  background: var(--success-bg);
+  color: var(--success-text);
+}
+
+.toast[data-type="error"] {
+  border-color: var(--error-border);
+  background: var(--error-bg);
+  color: var(--error-text);
+}

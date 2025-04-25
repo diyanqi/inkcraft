@@ -26,11 +26,20 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog"
 import { Check, ScanText, Camera, ImagePlus, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import Cropper from 'react-easy-crop'
 import imageCompression from 'browser-image-compression'
+import { useMediaQuery } from "@/hooks/use-media-query"
 
 import { useState, useRef, useCallback } from "react"
 import { Loader2 } from "lucide-react"
@@ -92,6 +101,9 @@ export default function CreatePage() {
     const videoRef = useRef<HTMLVideoElement>(null)
     const inputFileRef = useRef<HTMLInputElement>(null)
     const streamRef = useRef<MediaStream | null>(null)
+
+    // 媒体查询
+    const isDesktop = useMediaQuery("(min-width: 768px)");
 
     // 打开摄像头
     const openCamera = async () => {
@@ -220,6 +232,7 @@ export default function CreatePage() {
             onClick={() => {
                 setActiveInput(inputType)
                 setIsDrawerOpen(true)
+                openCamera() // 直接在按钮点击时打开相机
             }}
         >
             {isLoading ? (
@@ -403,94 +416,187 @@ export default function CreatePage() {
                 </Card>
             </div>
 
-            {/* 统一 Drawer 组件 */}
-            <Drawer open={isDrawerOpen} onOpenChange={(open) => {
-                setIsDrawerOpen(open)
-                if (!open) {
-                    setImageSrc(null)
-                    stopCamera()
-                    setCroppingMode(false)
-                    setActiveInput(null)
-                }
-            }}>
-                <DrawerContent className="h-[90vh]">
-                    <DrawerHeader>
-                        <DrawerTitle>文字识别</DrawerTitle>
-                        <DrawerDescription>拍照或选择图片并裁剪</DrawerDescription>
-                    </DrawerHeader>
-                    <div className="flex flex-col items-center justify-center px-4 gap-4">
-                        {!imageSrc && (
-                            <>
-                                <video ref={videoRef} className="rounded-md w-full max-w-md" />
-                                <Button onClick={openCamera}>
-                                    <Camera className="w-4 h-4 mr-2" /> 打开相机
-                                </Button>
-                                <Button onClick={takePhoto} variant="secondary">
-                                    拍照
-                                </Button>
-                                <Button onClick={() => inputFileRef.current?.click()} variant="ghost">
-                                    <ImagePlus className="w-4 h-4 mr-2" /> 从相册选择
-                                </Button>
-                                <input
-                                    ref={inputFileRef}
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    onChange={handleImageChange}
-                                />
-                            </>
-                        )}
-                        {imageSrc && croppingMode && (
-                            <div className="relative w-full max-w-md h-[300px]">
-                                <Cropper
-                                    image={imageSrc}
-                                    crop={{ x: 0, y: 0 }}
-                                    zoom={1}
-                                    aspect={4 / 3}
-                                    onCropChange={() => {}}
-                                    onCropComplete={handleCropComplete}
-                                    onZoomChange={() => {}}
-                                />
+            {/* 统一组件 */}
+            {
+                isDesktop && (
+                    <Dialog open={isDrawerOpen} onOpenChange={(open) => {
+                        setIsDrawerOpen(open)
+                        if (!open) {
+                            setImageSrc(null)
+                            stopCamera()
+                            setCroppingMode(false)
+                            setActiveInput(null)
+                        }
+                    }}>
+                        <DialogContent className="sm:max-w-[600px]">
+                            <DialogHeader>
+                                <DialogTitle>文字识别</DialogTitle>
+                                <DialogDescription>拍照或选择图片并裁剪</DialogDescription>
+                            </DialogHeader>
+                            <div className="flex flex-col items-center justify-center px-4 gap-4">
+                                {!imageSrc && (
+                                    <>
+                                        <video ref={videoRef} className="rounded-md w-full max-w-md" />
+                                        <div className="flex flex-row gap-2 justify-center w-full">
+                                            <Button onClick={takePhoto} variant="default">
+                                                <Camera className="w-4 h-4 mr-2" /> 拍照
+                                            </Button>
+                                            <Button onClick={() => inputFileRef.current?.click()} variant="outline">
+                                                <ImagePlus className="w-4 h-4 mr-2" /> 从相册选择
+                                            </Button>
+                                        </div>
+                                        <input
+                                            ref={inputFileRef}
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={handleImageChange}
+                                        />
+                                    </>
+                                )}
+                                {imageSrc && croppingMode && (
+                                    <div className="relative w-full max-w-md h-[300px]">
+                                        <Cropper
+                                            image={imageSrc}
+                                            crop={{ x: 0, y: 0 }}
+                                            zoom={1}
+                                            aspect={4 / 3}
+                                            onCropChange={() => { }}
+                                            onCropComplete={handleCropComplete}
+                                            onZoomChange={() => { }}
+                                        />
+                                    </div>
+                                )}
                             </div>
-                        )}
-                    </div>
-                    <DrawerFooter className="flex flex-row justify-end gap-2">
-                        {imageSrc && croppingMode ? (
-                            <>
+                            <div className="flex flex-row justify-end gap-2 mt-4">
+                                {imageSrc && croppingMode ? (
+                                    <>
+                                        <Button
+                                            onClick={() => {
+                                                setImageSrc(null)
+                                                setCroppingMode(false)
+                                                openCamera()
+                                            }}
+                                            variant="ghost"
+                                        >
+                                            <RotateCcw className="w-4 h-4 mr-1" /> 重新拍摄
+                                        </Button>
+                                        <Button
+                                            onClick={handleConfirmCrop}
+                                            disabled={isOriginalOCRLoading || isReferenceOCRLoading || isEssayOCRLoading}
+                                        >
+                                            确认识别
+                                        </Button>
+                                    </>
+                                ) : null}
                                 <Button
+                                    variant="outline"
                                     onClick={() => {
                                         setImageSrc(null)
+                                        stopCamera()
                                         setCroppingMode(false)
-                                        openCamera()
+                                        setActiveInput(null)
+                                        setIsDrawerOpen(false)
                                     }}
-                                    variant="ghost"
                                 >
-                                    <RotateCcw className="w-4 h-4 mr-1" /> 重新拍摄
+                                    取消
                                 </Button>
-                                <Button
-                                    onClick={handleConfirmCrop}
-                                    disabled={isOriginalOCRLoading || isReferenceOCRLoading || isEssayOCRLoading}
-                                >
-                                    确认识别
-                                </Button>
-                            </>
-                        ) : null}
-                        <DrawerClose>
-                            <Button
-                                variant="outline"
-                                onClick={() => {
-                                    setImageSrc(null)
-                                    stopCamera()
-                                    setCroppingMode(false)
-                                    setActiveInput(null)
-                                }}
-                            >
-                                取消
-                            </Button>
-                        </DrawerClose>
-                    </DrawerFooter>
-                </DrawerContent>
-            </Drawer>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+                )
+            }
+            {
+                !isDesktop && (
+                    <Drawer open={isDrawerOpen} onOpenChange={(open) => {
+                        setIsDrawerOpen(open)
+                        if (!open) {
+                            setImageSrc(null)
+                            stopCamera()
+                            setCroppingMode(false)
+                            setActiveInput(null)
+                        }
+                    }}>
+                        <DrawerContent className="h-[90vh]">
+                            <DrawerHeader>
+                                <DrawerTitle>文字识别</DrawerTitle>
+                                <DrawerDescription>拍照或选择图片并裁剪</DrawerDescription>
+                            </DrawerHeader>
+                            <div className="flex flex-col items-center justify-center px-4 gap-4">
+                                {!imageSrc && (
+                                    <>
+                                        <video ref={videoRef} className="rounded-md w-full max-w-md" />
+                                        <div className="flex flex-row gap-2 justify-center w-full">
+                                            <Button onClick={takePhoto} variant="default">
+                                                <Camera className="w-4 h-4 mr-2" /> 拍照
+                                            </Button>
+                                            <Button onClick={() => inputFileRef.current?.click()} variant="outline">
+                                                <ImagePlus className="w-4 h-4 mr-2" /> 从相册选择
+                                            </Button>
+                                        </div>
+                                        <input
+                                            ref={inputFileRef}
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={handleImageChange}
+                                        />
+                                    </>
+                                )}
+                                {imageSrc && croppingMode && (
+                                    <div className="relative w-full max-w-md h-[300px]">
+                                        <Cropper
+                                            image={imageSrc}
+                                            crop={{ x: 0, y: 0 }}
+                                            zoom={1}
+                                            aspect={4 / 3}
+                                            onCropChange={() => { }}
+                                            onCropComplete={handleCropComplete}
+                                            onZoomChange={() => { }}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                            <DrawerFooter className="flex flex-row justify-end gap-2">
+                                {imageSrc && croppingMode ? (
+                                    <>
+                                        <Button
+                                            onClick={() => {
+                                                setImageSrc(null)
+                                                setCroppingMode(false)
+                                                openCamera()
+                                            }}
+                                            variant="ghost"
+                                        >
+                                            <RotateCcw className="w-4 h-4 mr-1" /> 重新拍摄
+                                        </Button>
+                                        <Button
+                                            onClick={handleConfirmCrop}
+                                            disabled={isOriginalOCRLoading || isReferenceOCRLoading || isEssayOCRLoading}
+                                        >
+                                            确认识别
+                                        </Button>
+                                    </>
+                                ) : null}
+                                <DrawerClose asChild>
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => {
+                                            setImageSrc(null)
+                                            stopCamera() // 确保关闭摄像头
+                                            setCroppingMode(false)
+                                            setActiveInput(null)
+                                            setIsDrawerOpen(false) // 手动关闭 Drawer
+                                        }}
+                                    >
+                                        取消
+                                    </Button>
+                                </DrawerClose>
+                            </DrawerFooter>
+                        </DrawerContent>
+                    </Drawer>
+                )
+            }
 
             <div className="flex justify-end mt-8">
                 <Button
