@@ -1,36 +1,55 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Inkcraft 应试作文工具
 
-## Getting Started
+## 简介
 
-First, run the development server:
+**项目背景**  
+Inkcraft 是基于 Next.js 的现代化数字内容创作平台，致力于帮助创作者高效生产结构化的数字内容资产。
 
+**技术栈**  
+- 框架: Next.js 15.3.0 (App Router)
+- 前端: React 19 + TypeScript
+- UI 库: Radix UI + shadcn/ui
+- 动画: Framer Motion 12.7.4
+- 状态管理: @tanstack/react-table 8.21.2
+- 数据可视化: Recharts 2.15.2
+
+## 如何开发
+
+**环境要求**  
+- Node.js 18+  
+- pnpm 8.6+
+
+**安装步骤**
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
+pnpm prisma generate
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+**开发命令**
+```bash
+# 启动开发服务器
+pnpm dev
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+# 生产构建
+pnpm build
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# 启动生产服务器
+pnpm start
 
-## Learn More
+# 代码质量检查
+pnpm lint
+```
 
-To learn more about Next.js, take a look at the following resources:
+## 其他
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**开源协议**  
+本项目采用 [CC-BY-NC-4.0](https://creativecommons.org/licenses/by-nc/4.0/deed.zh) 非商业性共享协议，禁止未经授权的商业用途。
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**贡献指南**  
+1. Fork 项目仓库  
+2. 创建特性分支 (`git checkout -b feature/xxx`)  
+3. 提交代码变更  
+4. 发起 Pull Request 并关联对应 issue
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**核心依赖版本**  
+详见 [package.json](./package.json)
