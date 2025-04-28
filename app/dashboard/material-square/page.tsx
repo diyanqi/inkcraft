@@ -100,7 +100,7 @@ export default function MaterialSquarePage() {
       <h1 className="text-2xl font-bold tracking-tight">素材广场</h1>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {currentMaterials.map((material) => (
-          <Card key={material.id} className="group overflow-hidden transition-all hover:shadow-lg w-[135%]">
+          <Card key={material.id} className="group overflow-hidden transition-all hover:shadow-lg w-full">
             <CardHeader>
               <CardTitle className="mb-2 truncate">{material.title}</CardTitle>
               <CardDescription className="line-clamp-2">

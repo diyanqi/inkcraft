@@ -12,6 +12,7 @@ import {
   IconFileWord,
   IconHelp,
   IconInnerShadowTop,
+  IconPencilBolt,
   IconMessage2Star,
   IconReport,
   IconSearch,
@@ -155,7 +156,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
               <a href="#">
-                <IconInnerShadowTop className="!size-5" />
+                <IconPencilBolt className="!size-5" />
                 <span className="text-base font-semibold">墨灵</span>
               </a>
             </SidebarMenuButton>

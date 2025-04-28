@@ -344,3 +344,18 @@
   background: var(--error-bg);
   color: var(--error-text);
 }
+
+/* Styles for the iOS-like crop overlay */
+/* Target the container element that ReactCrop renders */
+.ios-crop-overlay {
+  /* Override the default dark background */
+  background: none !important;
+  /* Use inset box-shadow to create a white semi-transparent overlay outside the crop area */
+  /* The 9999px is a large value to ensure it covers the whole area outside the crop */
+  box-shadow: inset 0 0 0 9999px rgba(255, 255, 255, 0.5); /* Adjust opacity (0.5) as needed */
+}
+
+/* Optional: You might want to adjust the crop selection border color */
+/* .ios-crop-overlay .ReactCrop__crop-selection {
+  border-color: white;
+} */

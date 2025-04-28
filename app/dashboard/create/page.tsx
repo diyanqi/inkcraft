@@ -8,7 +8,6 @@ import {
     DrawerFooter,
     DrawerHeader,
     DrawerTitle,
-    DrawerTrigger,
 } from "@/components/ui/drawer"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -32,56 +31,104 @@ import {
     DialogDescription,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from "@/components/ui/dialog"
-import { Check, ScanText, Camera, ImagePlus, RotateCcw } from "lucide-react"
+import { Check, ScanText, ImagePlus, RotateCcw, Crop as CropIcon } from "lucide-react" // Renamed lucide-react Crop to CropIcon to avoid conflict
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
-import Cropper from 'react-easy-crop'
+// Import react-image-crop
+import ReactCrop, {
+    centerCrop,
+    makeAspectCrop,
+} from 'react-image-crop';
+import type { Crop, PixelCrop, PercentCrop } from 'react-image-crop'; // Explicitly import types and add PercentCrop
 import imageCompression from 'browser-image-compression'
 import { useMediaQuery } from "@/hooks/use-media-query"
 
-import { useState, useRef, useCallback } from "react"
+import { useState, useRef, useCallback, useEffect } from "react"
 import { Loader2 } from "lucide-react"
 
-// Helper function for cropping
-const getCroppedImg = (imageSrc: string, crop: any): Promise<Blob> => {
+// Import react-image-crop styles
+import 'react-image-crop/dist/ReactCrop.css'
+
+// Helper function to draw the cropped image onto a canvas
+// This is different from react-easy-crop's getCroppedImg
+async function canvasPreview(
+    image: HTMLImageElement,
+    crop: PixelCrop,
+    scale = 1,
+    rotate = 0,
+): Promise<Blob | null> {
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+
+    if (!ctx) {
+        throw new Error('No 2D context')
+    }
+
+    const scaleX = image.naturalWidth / image.width
+    const scaleY = image.naturalHeight / image.height
+    // devicePixelRatio slightly increases sharpness on retina devices
+    // at the expense of slightly slower render times.
+    // document.body.append(canvas) // for debugging
+
+    const ratio = window.devicePixelRatio || 1
+
+    canvas.width = Math.floor(crop.width * scaleX * ratio)
+    canvas.height = Math.floor(crop.height * scaleY * ratio)
+
+    ctx.scale(ratio, ratio)
+    ctx.imageSmoothingQuality = 'high'
+
+    const cropX = crop.x * scaleX
+    const cropY = crop.y * scaleY
+
+    const rotateRads = rotate * Math.PI / 180
+    const centerX = image.naturalWidth / 2
+    const centerY = image.naturalHeight / 2
+
+    ctx.save()
+
+    // 5) Move the crop origin to the canvas origin (0,0)
+    ctx.translate(-cropX, -cropY)
+    // 4) Move the canvas origin to the center of the original image
+    ctx.translate(centerX, centerY)
+    // 3) Rotate around the center of the original image
+    ctx.rotate(rotateRads)
+    // 2) Scale the image
+    ctx.scale(scale, scale)
+    // 1) Move the center of the original image to the canvas origin (0,0)
+    ctx.translate(-centerX, -centerY)
+
+    // Draw the cropped image
+    ctx.drawImage(
+        image,
+        0,
+        0,
+        image.naturalWidth,
+        image.naturalHeight,
+        0,
+        0,
+        image.naturalWidth,
+        image.naturalHeight,
+    )
+
+    ctx.restore()
+
     return new Promise((resolve, reject) => {
-        const image = new Image()
-        image.src = imageSrc
-        image.onload = () => {
-            const canvas = document.createElement("canvas")
-            const ctx = canvas.getContext("2d")!
-
-            canvas.width = crop.width
-            canvas.height = crop.height
-
-            ctx.drawImage(
-                image,
-                crop.x,
-                crop.y,
-                crop.width,
-                crop.height,
-                0,
-                0,
-                crop.width,
-                crop.height
-            )
-
-            canvas.toBlob((blob) => {
-                if (!blob) {
-                    reject(new Error("Canvas is empty"))
-                    return
-                }
+        canvas.toBlob(
+            (blob) => {
+                // canvas.remove() // for debugging
                 resolve(blob)
-            }, "image/jpeg")
-        }
-        image.onerror = () => reject(new Error("加载图片失败"))
+            },
+            'image/jpeg',
+            1 // quality
+        )
     })
 }
 
+
 export default function CreatePage() {
-    // 状态管理
+    // State management
     const [originalText, setOriginalText] = useState("")
     const [referenceText, setReferenceText] = useState("")
     const [essayText, setEssayText] = useState("")
@@ -89,91 +136,177 @@ export default function CreatePage() {
     const [isReferenceOCRLoading, setIsReferenceOCRLoading] = useState(false)
     const [isEssayOCRLoading, setIsEssayOCRLoading] = useState(false)
     const [isDrawerOpen, setIsDrawerOpen] = useState(false)
-    const [imageSrc, setImageSrc] = useState<string | null>(null)
-    const [croppedAreaPixels, setCroppedAreaPixels] = useState(null)
-    const [croppingMode, setCroppingMode] = useState(false)
+
+    // react-image-crop states
+    const [imageSrc, setImageSrc] = useState<string | null>(null) // Original image data URL
+    const [crop, setCrop] = useState<Crop>() // Current crop object (user is dragging)
+    const [completedCrop, setCompletedCrop] = useState<PixelCrop>() // Final crop object (after user stops dragging)
+    const [croppedImageSrc, setCroppedImageSrc] = useState<string | null>(null) // Data URL of the cropped preview
+    const [isCropMode, setIsCropMode] = useState(false) // Whether the cropper is visible
+
     const [activeInput, setActiveInput] = useState<'original' | 'reference' | 'essay' | null>(null)
 
-    // 文件输入引用
+    // File input references
     const originalFileInputRef = useRef<HTMLInputElement>(null)
     const referenceFileInputRef = useRef<HTMLInputElement>(null)
     const essayFileInputRef = useRef<HTMLInputElement>(null)
-    const videoRef = useRef<HTMLVideoElement>(null)
-    const inputFileRef = useRef<HTMLInputElement>(null)
-    const streamRef = useRef<MediaStream | null>(null)
+    const inputFileRef = useRef<HTMLInputElement>(null) // Unified file input
 
-    // 媒体查询
+    // Ref for the image element inside the cropper
+    const imgRef = useRef<HTMLImageElement>(null)
+
+    // Media query
     const isDesktop = useMediaQuery("(min-width: 768px)");
 
-    // 打开摄像头
-    const openCamera = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true })
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream
-                videoRef.current.play()
-                streamRef.current = stream
-            }
-        } catch (err) {
-            toast.error("无法访问摄像头")
-        }
-    }
-
-    // 拍照
-    const takePhoto = () => {
-        if (!videoRef.current) return
-        const canvas = document.createElement("canvas")
-        canvas.width = videoRef.current.videoWidth
-        canvas.height = videoRef.current.videoHeight
-        const ctx = canvas.getContext("2d")
-        ctx?.drawImage(videoRef.current, 0, 0)
-        const imgData = canvas.toDataURL("image/jpeg")
-        setImageSrc(imgData)
-        stopCamera()
-        setCroppingMode(true)
-    }
-
-    // 停止摄像头
-    const stopCamera = () => {
-        streamRef.current?.getTracks().forEach(track => track.stop())
-        streamRef.current = null
-    }
-
-    // 处理图片选择
+    // Handle image selection
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (!file) return
+
         const reader = new FileReader()
-        reader.onload = () => {
+        reader.addEventListener('load', () => {
             setImageSrc(reader.result as string)
-            setCroppingMode(true)
-        }
+            setCroppedImageSrc(null) // Clear previous cropped image
+            // Keep crop and completedCrop as undefined initially, onImageLoad will set the default
+            setCrop(undefined)
+            setCompletedCrop(undefined)
+            setIsCropMode(true) // Automatically enter crop mode after selecting
+        })
         reader.readAsDataURL(file)
+
         if (e.target) e.target.value = '' // Reset file input
     }
 
-    // 裁剪完成回调
-    const handleCropComplete = useCallback((_: any, croppedPixels: any) => {
-        setCroppedAreaPixels(croppedPixels)
-    }, [])
-
-    // 确认裁剪
-    const handleConfirmCrop = async () => {
-        if (!imageSrc || !croppedAreaPixels || !activeInput) return
-        try {
-            const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels)
-            if (!croppedBlob) throw new Error("裁剪失败")
-            await handleOCR(croppedBlob, activeInput)
-            setIsDrawerOpen(false)
-            setImageSrc(null)
-            setCroppingMode(false)
-            setActiveInput(null)
-        } catch (error) {
-            toast.error("裁剪或识别失败")
+    // Handle drag-and-drop
+    const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault()
+        const file = e.dataTransfer.files[0]
+        if (file && file.type.startsWith('image/')) {
+            const reader = new FileReader()
+            reader.addEventListener('load', () => {
+                setImageSrc(reader.result as string)
+                setCroppedImageSrc(null)
+                setCrop(undefined)
+                setCompletedCrop(undefined)
+                setIsCropMode(true)
+            })
+            reader.readAsDataURL(file)
         }
     }
 
-    // OCR处理函数
+    // Prevent default drag-over behavior
+    const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault()
+    }
+
+    // Handle image load in the cropper - Set default 80% crop here
+    const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
+        imgRef.current = e.currentTarget;
+        const { width, height } = e.currentTarget;
+
+        // Calculate and set the initial 80% centered crop when the image loads
+        // This logic runs when a *new* image is loaded.
+        // When re-entering crop mode for the *same* image, we'll use the completedCrop.
+        if (!crop && !completedCrop) { // Only set default if no crop is already defined
+             const initialCrop: PercentCrop = { // <-- Changed type to PercentCrop
+                 unit: '%', // Use percentage units
+                 width: 80, // 80% width
+                 height: 80, // 80% height
+                 x: 0, // Temporary x, centerCrop will calculate
+                 y: 0, // Temporary y, centerCrop will calculate
+             };
+
+             // Center the calculated crop
+             const centeredCrop = centerCrop(initialCrop, width, height);
+
+             // Set the calculated centered crop as the initial crop state
+             setCrop(centeredCrop);
+
+             // Also immediately calculate and set the completed crop based on this default
+             // This allows the preview to show right away and the "确认识别" button to be enabled
+             // without the user needing to drag.
+             if (imgRef.current && centeredCrop.width && centeredCrop.height && centeredCrop.unit === '%') {
+                  // Need to convert percentage crop to pixel crop for completedCrop
+                  const pixelCrop: PixelCrop = {
+                      x: (centeredCrop.x / 100) * width,
+                      y: (centeredCrop.y / 100) * height,
+                      width: (centeredCrop.width / 100) * width,
+                      height: (centeredCrop.height / 100) * height,
+                      unit: 'px' // completedCrop is typically in pixels
+                  };
+                 setCompletedCrop(pixelCrop);
+             }
+        }
+
+
+    }, [crop, completedCrop]); // Dependencies: include crop and completedCrop to avoid re-setting default if they exist.
+
+    // Generate the cropped preview when completedCrop changes
+    useEffect(() => {
+        if (completedCrop?.width && completedCrop?.height && imgRef.current) {
+            // Use canvasPreview to get the cropped blob
+            canvasPreview(
+                imgRef.current,
+                completedCrop,
+                1, // scale
+                0  // rotate
+            ).then(blob => {
+                if (blob) {
+                    const reader = new FileReader()
+                    reader.onload = () => {
+                        setCroppedImageSrc(reader.result as string)
+                    }
+                    reader.readAsDataURL(blob)
+                }
+            }).catch(error => {
+                 console.error("Failed to create canvas preview:", error);
+                 toast.error("生成图片预览失败");
+            });
+        } else {
+            setCroppedImageSrc(null); // Clear preview if crop is cleared
+        }
+    }, [completedCrop]); // Effect runs when completedCrop changes
+
+    // Confirm crop
+    const handleConfirmCrop = () => {
+        if (completedCrop?.width && completedCrop?.height && imgRef.current) {
+            // The useEffect above already generated the croppedImageSrc
+            // We just need to exit crop mode
+            setIsCropMode(false);
+        } else {
+            toast.error("请先完成裁剪区域的选择");
+        }
+    }
+
+    // Proceed with OCR
+    const handleProceedOCR = async () => {
+        if (!croppedImageSrc || !activeInput) {
+            toast.error("没有可识别的图片");
+            return;
+        }
+        try {
+            // Convert the cropped data URL back to a Blob
+            const response = await fetch(croppedImageSrc);
+            const croppedBlob = await response.blob();
+
+            await handleOCR(croppedBlob, activeInput);
+
+            // Close drawer/dialog and reset states after successful OCR
+            setIsDrawerOpen(false);
+            setImageSrc(null);
+            setCroppedImageSrc(null);
+            setIsCropMode(false);
+            setActiveInput(null);
+            setCrop(undefined); // Reset crop state
+            setCompletedCrop(undefined); // Reset completed crop state
+            if (inputFileRef.current) inputFileRef.current.value = ''; // Reset file input element
+        } catch (error) {
+            console.error("Error processing cropped image for OCR:", error);
+            toast.error("处理图片失败");
+        }
+    }
+
+    // OCR handling function
     const handleOCR = async (file: Blob, inputType: 'original' | 'reference' | 'essay') => {
         const setLoading = {
             original: setIsOriginalOCRLoading,
@@ -189,13 +322,15 @@ export default function CreatePage() {
         setLoading(true)
         try {
             const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true }
-            const fileToProcess = new File([file], "cropped.jpg", {
+            // Use the original file name or a generic one
+            const fileName = `ocr_image_${inputType}.jpg`;
+            const fileToProcess = new File([file], fileName, {
                 type: "image/jpeg",
                 lastModified: Date.now(),
             })
             const compressedFile = await imageCompression(fileToProcess, options)
             const formData = new FormData()
-            formData.append("file", compressedFile, "cropped.jpg")
+            formData.append("file", compressedFile, fileName)
 
             const res = await fetch("/api/ocr", {
                 method: "POST",
@@ -207,16 +342,24 @@ export default function CreatePage() {
                 setText(data.text)
                 toast.success("识别成功")
             } else {
-                throw new Error(data.error || "识别失败")
+                // Log the full error response from the server
+                console.error("OCR API Error:", data);
+                throw new Error(data.error || "识别失败");
             }
         } catch (err) {
-            toast.error("OCR 失败")
+            console.error("OCR Fetch or Processing Error:", err); // Log the actual error
+             // Display a user-friendly message, possibly based on the error
+            if (err instanceof Error) {
+                 toast.error(`OCR 失败: ${err.message}`);
+            } else {
+                 toast.error("OCR 失败，请重试");
+            }
         } finally {
             setLoading(false)
         }
     }
 
-    // OCR按钮组件
+    // OCR Button component
     const OCRButton = ({
         isLoading,
         inputType,
@@ -232,7 +375,7 @@ export default function CreatePage() {
             onClick={() => {
                 setActiveInput(inputType)
                 setIsDrawerOpen(true)
-                openCamera() // 直接在按钮点击时打开相机
+                // The file input click is now triggered inside the drawer/dialog
             }}
         >
             {isLoading ? (
@@ -249,11 +392,167 @@ export default function CreatePage() {
         </Button>
     )
 
+    // Function to reset all image/cropping related states
+    const resetImageStates = () => {
+        setImageSrc(null);
+        setCroppedImageSrc(null);
+        setIsCropMode(false);
+        setActiveInput(null);
+        setCrop(undefined); // Ensure crop state is reset
+        setCompletedCrop(undefined); // Ensure completed crop state is reset
+        if (inputFileRef.current) inputFileRef.current.value = ''; // Reset file input element
+    };
+
+
+    const renderCropperContent = () => (
+        <div className="flex flex-col items-center justify-center px-4 gap-4 h-full"> {/* Added h-full */}
+            {!imageSrc && (
+                <>
+                    <div
+                        className="w-full max-w-md h-32 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center text-gray-500 hover:border-gray-400 transition-colors cursor-pointer"
+                        onDrop={handleDrop}
+                        onDragOver={handleDragOver}
+                        onClick={() => inputFileRef.current?.click()}
+                    >
+                        将图片拖放到此处
+                    </div>
+                    <Button onClick={() => inputFileRef.current?.click()} variant="outline">
+                        <ImagePlus className="w-4 h-4 mr-2" /> 或手动选择…
+                    </Button>
+                    {/* Unified file input */}
+                    <input
+                        ref={inputFileRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleImageChange}
+                    />
+                </>
+            )}
+            {imageSrc && isCropMode && (
+                // Container for ReactCrop - needs dimensions
+                <div className="relative w-full max-w-md h-[400px] md:h-[500px]"> {/* Increased height */}
+                    <ReactCrop
+                        crop={crop}
+                        onChange={(_, percentCrop) => setCrop(percentCrop)}
+                        onComplete={(c) => setCompletedCrop(c)}
+                         // Add the custom class for styling the overlay
+                        className="ios-crop-overlay"
+                        // No 'aspect' prop for freeform cropping
+                        // ruleOfThirds // Optional: show grid lines
+                        // circularCrop // Optional: circular crop
+                        // minWidth, minHeight, maxWidth, maxHeight can be added here
+                        // disabled={isLoading} // Disable crop while loading?
+                    >
+                         {/* The image element that ReactCrop works on */}
+                        <img
+                            ref={imgRef}
+                            alt="Crop me"
+                            src={imageSrc}
+                            onLoad={onImageLoad} // onImageLoad sets the default crop if none exists
+                            // Style to make image fit container and allow cropping
+                            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                        />
+                    </ReactCrop>
+                </div>
+            )}
+            {imageSrc && !isCropMode && croppedImageSrc && (
+                 <div className="flex flex-col items-center gap-4">
+                    <img
+                        src={croppedImageSrc}
+                        alt="Cropped preview"
+                        className="max-w-full max-h-[400px] md:max-h-[500px] object-contain" // Increased max height
+                    />
+                    <div className="flex flex-row gap-2">
+                        <Button
+                            onClick={resetImageStates} // Use reset function
+                            variant="ghost"
+                        >
+                            <RotateCcw className="w-4 h-4 mr-1" /> 重新选择
+                        </Button>
+                        <Button
+                             onClick={() => {
+                                // Set the crop state to the last completed crop before re-entering crop mode
+                                if (completedCrop) {
+                                     setCrop(completedCrop);
+                                }
+                                setIsCropMode(true); // Go back to crop mode
+                             }}
+                            variant="ghost"
+                        >
+                            <CropIcon className="w-4 h-4 mr-2" /> 重新裁剪 {/* Use CropIcon */}
+                        </Button>
+                    </div>
+                 </div>
+            )}
+             {/* Handle the case where imageSrc is set but not in crop mode and no croppedImageSrc (shouldn't happen often with current logic) */}
+             {imageSrc && !isCropMode && !croppedImageSrc && (
+                 <div className="flex flex-col items-center gap-4">
+                    <p className="text-muted-foreground">请选择或裁剪图片</p>
+                     <Button
+                         onClick={resetImageStates} // Use reset function
+                         variant="ghost"
+                     >
+                         <RotateCcw className="w-4 h-4 mr-1" /> 重新选择
+                     </Button>
+                 </div>
+             )}
+        </div>
+    );
+
+    const renderCropperFooter = () => (
+        <div className="flex flex-row justify-end gap-2 mt-4">
+            {imageSrc && isCropMode ? (
+                <>
+                    <Button
+                        onClick={() => {
+                            setIsCropMode(false); // Exit crop mode without confirming
+                            // Optionally reset crop/completedCrop here if you want to discard changes made during this crop session
+                            // setCrop(undefined); // Keep the current crop state when cancelling to allow resuming? Or clear?
+                            // setCompletedCrop(undefined); // Keep the completedCrop state?
+                        }}
+                        variant="ghost"
+                    >
+                        取消裁剪
+                    </Button>
+                    <Button
+                        onClick={handleConfirmCrop}
+                        // Button is enabled if completedCrop has dimensions (set by onImageLoad or onComplete)
+                        disabled={!completedCrop?.width || !completedCrop?.height || isOriginalOCRLoading || isReferenceOCRLoading || isEssayOCRLoading}
+                    >
+                        确认裁剪
+                    </Button>
+                </>
+            ) : imageSrc && !isCropMode && croppedImageSrc ? (
+                <>
+                    <Button
+                        onClick={handleProceedOCR}
+                        disabled={isOriginalOCRLoading || isReferenceOCRLoading || isEssayOCRLoading}
+                    >
+                        确认识别
+                    </Button>
+                </>
+            ) : null}
+            {/* Simplified cancel button logic */}
+             {/* This '取消' button closes the modal/drawer entirely */}
+             <Button
+                variant="outline"
+                onClick={() => {
+                    setIsDrawerOpen(false);
+                    resetImageStates(); // Reset states when cancel button is clicked
+                }}
+            >
+                取消
+            </Button>
+        </div>
+    );
+
+
     return (
         <div className="flex flex-col gap-4 p-4 md:p-6">
             <h1 className="text-2xl font-bold tracking-tight">新建批改任务</h1>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                {/* 第一个卡片：题干录入 */}
+                {/* First Card: Question Input */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="text-lg">题干录入</CardTitle>
@@ -279,17 +578,6 @@ export default function CreatePage() {
                                 onChange={(e) => setOriginalText(e.target.value)}
                             />
                             <div className="flex justify-end">
-                                <input
-                                    type="file"
-                                    ref={originalFileInputRef}
-                                    className="hidden"
-                                    accept="image/*"
-                                    onChange={(e) => {
-                                        const file = e.target.files?.[0]
-                                        if (file) handleOCR(file, 'original')
-                                        if (e.target) e.target.value = ''
-                                    }}
-                                />
                                 <OCRButton
                                     isLoading={isOriginalOCRLoading}
                                     inputType="original"
@@ -306,17 +594,6 @@ export default function CreatePage() {
                                 onChange={(e) => setReferenceText(e.target.value)}
                             />
                             <div className="flex justify-end">
-                                <input
-                                    type="file"
-                                    ref={referenceFileInputRef}
-                                    className="hidden"
-                                    accept="image/*"
-                                    onChange={(e) => {
-                                        const file = e.target.files?.[0]
-                                        if (file) handleOCR(file, 'reference')
-                                        if (e.target) e.target.value = ''
-                                    }}
-                                />
                                 <OCRButton
                                     isLoading={isReferenceOCRLoading}
                                     inputType="reference"
@@ -339,7 +616,7 @@ export default function CreatePage() {
                     </CardContent>
                 </Card>
 
-                {/* 第二个卡片：文章录入 */}
+                {/* Second Card: Essay Input */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="text-lg">文章录入</CardTitle>
@@ -356,17 +633,6 @@ export default function CreatePage() {
                                 onChange={(e) => setEssayText(e.target.value)}
                             />
                             <div className="flex justify-end">
-                                <input
-                                    type="file"
-                                    ref={essayFileInputRef}
-                                    className="hidden"
-                                    accept="image/*"
-                                    onChange={(e) => {
-                                        const file = e.target.files?.[0]
-                                        if (file) handleOCR(file, 'essay')
-                                        if (e.target) e.target.value = ''
-                                    }}
-                                />
                                 <OCRButton
                                     isLoading={isEssayOCRLoading}
                                     inputType="essay"
@@ -376,7 +642,7 @@ export default function CreatePage() {
                     </CardContent>
                 </Card>
 
-                {/* 第三个卡片：批改选项 */}
+                {/* Third Card: Correction Options */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="text-lg">批改选项</CardTitle>
@@ -416,187 +682,49 @@ export default function CreatePage() {
                 </Card>
             </div>
 
-            {/* 统一组件 */}
+            {/* Unified Component for Cropper */}
             {
-                isDesktop && (
+                isDesktop ? (
                     <Dialog open={isDrawerOpen} onOpenChange={(open) => {
                         setIsDrawerOpen(open)
                         if (!open) {
-                            setImageSrc(null)
-                            stopCamera()
-                            setCroppingMode(false)
-                            setActiveInput(null)
+                            resetImageStates(); // Reset states when dialog closes
                         }
                     }}>
-                        <DialogContent className="sm:max-w-[600px]">
+                        <DialogContent className="sm:max-w-[600px] h-[80vh] flex flex-col"> {/* Added h-[80vh] and flex-col */}
                             <DialogHeader>
                                 <DialogTitle>文字识别</DialogTitle>
-                                <DialogDescription>拍照或选择图片并裁剪</DialogDescription>
+                                <DialogDescription>选择图片并裁剪</DialogDescription>
                             </DialogHeader>
-                            <div className="flex flex-col items-center justify-center px-4 gap-4">
-                                {!imageSrc && (
-                                    <>
-                                        <video ref={videoRef} className="rounded-md w-full max-w-md" />
-                                        <div className="flex flex-row gap-2 justify-center w-full">
-                                            <Button onClick={takePhoto} variant="default">
-                                                <Camera className="w-4 h-4 mr-2" /> 拍照
-                                            </Button>
-                                            <Button onClick={() => inputFileRef.current?.click()} variant="outline">
-                                                <ImagePlus className="w-4 h-4 mr-2" /> 从相册选择
-                                            </Button>
-                                        </div>
-                                        <input
-                                            ref={inputFileRef}
-                                            type="file"
-                                            accept="image/*"
-                                            className="hidden"
-                                            onChange={handleImageChange}
-                                        />
-                                    </>
-                                )}
-                                {imageSrc && croppingMode && (
-                                    <div className="relative w-full max-w-md h-[300px]">
-                                        <Cropper
-                                            image={imageSrc}
-                                            crop={{ x: 0, y: 0 }}
-                                            zoom={1}
-                                            aspect={4 / 3}
-                                            onCropChange={() => { }}
-                                            onCropComplete={handleCropComplete}
-                                            onZoomChange={() => { }}
-                                        />
-                                    </div>
-                                )}
+                            <div className="flex-grow overflow-y-auto"> {/* Added flex-grow and overflow */}
+                                {renderCropperContent()}
                             </div>
-                            <div className="flex flex-row justify-end gap-2 mt-4">
-                                {imageSrc && croppingMode ? (
-                                    <>
-                                        <Button
-                                            onClick={() => {
-                                                setImageSrc(null)
-                                                setCroppingMode(false)
-                                                openCamera()
-                                            }}
-                                            variant="ghost"
-                                        >
-                                            <RotateCcw className="w-4 h-4 mr-1" /> 重新拍摄
-                                        </Button>
-                                        <Button
-                                            onClick={handleConfirmCrop}
-                                            disabled={isOriginalOCRLoading || isReferenceOCRLoading || isEssayOCRLoading}
-                                        >
-                                            确认识别
-                                        </Button>
-                                    </>
-                                ) : null}
-                                <Button
-                                    variant="outline"
-                                    onClick={() => {
-                                        setImageSrc(null)
-                                        stopCamera()
-                                        setCroppingMode(false)
-                                        setActiveInput(null)
-                                        setIsDrawerOpen(false)
-                                    }}
-                                >
-                                    取消
-                                </Button>
-                            </div>
+                            {renderCropperFooter()}
                         </DialogContent>
                     </Dialog>
-                )
-            }
-            {
-                !isDesktop && (
+                ) : (
                     <Drawer open={isDrawerOpen} onOpenChange={(open) => {
                         setIsDrawerOpen(open)
                         if (!open) {
-                            setImageSrc(null)
-                            stopCamera()
-                            setCroppingMode(false)
-                            setActiveInput(null)
+                            resetImageStates(); // Reset states when drawer closes
                         }
                     }}>
-                        <DrawerContent className="h-[90vh]">
+                        <DrawerContent className="h-[90vh] flex flex-col"> {/* Added flex-col */}
                             <DrawerHeader>
                                 <DrawerTitle>文字识别</DrawerTitle>
-                                <DrawerDescription>拍照或选择图片并裁剪</DrawerDescription>
+                                <DrawerDescription>选择图片并裁剪</DrawerDescription>
                             </DrawerHeader>
-                            <div className="flex flex-col items-center justify-center px-4 gap-4">
-                                {!imageSrc && (
-                                    <>
-                                        <video ref={videoRef} className="rounded-md w-full max-w-md" />
-                                        <div className="flex flex-row gap-2 justify-center w-full">
-                                            <Button onClick={takePhoto} variant="default">
-                                                <Camera className="w-4 h-4 mr-2" /> 拍照
-                                            </Button>
-                                            <Button onClick={() => inputFileRef.current?.click()} variant="outline">
-                                                <ImagePlus className="w-4 h-4 mr-2" /> 从相册选择
-                                            </Button>
-                                        </div>
-                                        <input
-                                            ref={inputFileRef}
-                                            type="file"
-                                            accept="image/*"
-                                            className="hidden"
-                                            onChange={handleImageChange}
-                                        />
-                                    </>
-                                )}
-                                {imageSrc && croppingMode && (
-                                    <div className="relative w-full max-w-md h-[300px]">
-                                        <Cropper
-                                            image={imageSrc}
-                                            crop={{ x: 0, y: 0 }}
-                                            zoom={1}
-                                            aspect={4 / 3}
-                                            onCropChange={() => { }}
-                                            onCropComplete={handleCropComplete}
-                                            onZoomChange={() => { }}
-                                        />
-                                    </div>
-                                )}
+                             <div className="flex-grow overflow-y-auto"> {/* Added flex-grow and overflow */}
+                                {renderCropperContent()}
                             </div>
                             <DrawerFooter className="flex flex-row justify-end gap-2">
-                                {imageSrc && croppingMode ? (
-                                    <>
-                                        <Button
-                                            onClick={() => {
-                                                setImageSrc(null)
-                                                setCroppingMode(false)
-                                                openCamera()
-                                            }}
-                                            variant="ghost"
-                                        >
-                                            <RotateCcw className="w-4 h-4 mr-1" /> 重新拍摄
-                                        </Button>
-                                        <Button
-                                            onClick={handleConfirmCrop}
-                                            disabled={isOriginalOCRLoading || isReferenceOCRLoading || isEssayOCRLoading}
-                                        >
-                                            确认识别
-                                        </Button>
-                                    </>
-                                ) : null}
-                                <DrawerClose asChild>
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => {
-                                            setImageSrc(null)
-                                            stopCamera() // 确保关闭摄像头
-                                            setCroppingMode(false)
-                                            setActiveInput(null)
-                                            setIsDrawerOpen(false) // 手动关闭 Drawer
-                                        }}
-                                    >
-                                        取消
-                                    </Button>
-                                </DrawerClose>
+                                {renderCropperFooter()}
                             </DrawerFooter>
                         </DrawerContent>
                     </Drawer>
                 )
             }
+
 
             <div className="flex justify-end mt-8">
                 <Button
