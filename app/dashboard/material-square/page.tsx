@@ -100,51 +100,34 @@ export default function MaterialSquarePage() {
       <h1 className="text-2xl font-bold tracking-tight">素材广场</h1>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {currentMaterials.map((material) => (
-          <TiltedCard
-            key={material.id}
-            imageSrc={material.image}
-            altText={material.description}
-            captionText={material.description}
-            // containerHeight="100%"
-            // containerWidth="100%"
-            // imageHeight="300px"
-            // imageWidth="300px"
-            rotateAmplitude={6}
-            scaleOnHover={1.05}
-            showMobileWarning={false}
-            showTooltip={true}
-            displayOverlayContent={true}
-            overlayContent={
-              <Card key={material.id} className="group overflow-hidden transition-all hover:shadow-lg w-[135%]">
-                <CardHeader>
-                  <CardTitle className="mb-2 truncate">{material.title}</CardTitle>
-                  <CardDescription className="line-clamp-2">
-                    {material.description}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="p-4">
+          <Card key={material.id} className="group overflow-hidden transition-all hover:shadow-lg w-[135%]">
+            <CardHeader>
+              <CardTitle className="mb-2 truncate">{material.title}</CardTitle>
+              <CardDescription className="line-clamp-2">
+                {material.description}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-4">
 
-                  <div className='mt-2'>
-                    {material.tags.map((tag) => (
-                      <Badge key={tag} variant="secondary">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Button
-                    className="w-full"
-                    variant={material.starred ? 'default' : 'secondary'}
-                    onClick={() => handleStarClick(material.id)}
-                  >
-                    {material.starred ? <IconStarFilled /> : <Star />}
-                    {material.starred ? '已收藏' : '收藏'}
-                  </Button>
-                </CardFooter>
-              </Card>
-            }
-          />
+              <div className='mt-2'>
+                {material.tags.map((tag) => (
+                  <Badge key={tag} variant="secondary">
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button
+                className="w-full"
+                variant={material.starred ? 'default' : 'secondary'}
+                onClick={() => handleStarClick(material.id)}
+              >
+                {material.starred ? <IconStarFilled /> : <Star />}
+                {material.starred ? '已收藏' : '收藏'}
+              </Button>
+            </CardFooter>
+          </Card>
         ))}
       </div>
       <Pagination className="mt-8">
