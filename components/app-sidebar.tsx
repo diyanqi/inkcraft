@@ -141,7 +141,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: session } = useSession()
   
   const userData = {
-    name: session?.user?.name || "游客",
+    name: session?.user?.name || session?.user?.email || "游客",
     email: session?.user?.email || "",
     avatar: session?.user?.image || "/avatars/default.jpg",
   }
