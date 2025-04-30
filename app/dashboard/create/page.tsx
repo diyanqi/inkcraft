@@ -434,8 +434,8 @@ export default function CreatePage() {
                 <div className="relative w-full max-w-md h-[400px] md:h-[500px]"> {/* Increased height */}
                     <ReactCrop
                         crop={crop}
-                        onChange={(_, percentCrop) => setCrop(percentCrop)}
-                        onComplete={(c) => setCompletedCrop(c)}
+                        onChange={(_: any, percentCrop: any) => setCrop(percentCrop)}
+                        onComplete={(c: any) => setCompletedCrop(c)}
                          // Add the custom class for styling the overlay
                         className="ios-crop-overlay"
                         // No 'aspect' prop for freeform cropping
