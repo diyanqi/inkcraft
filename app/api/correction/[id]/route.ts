@@ -9,8 +9,7 @@ export async function GET(req: NextRequest, context: { params: { id: string } })
       return NextResponse.json({ success: false, message: "未登录或无效用户" }, { status: 401 });
     }
 
-    const { params } = await context;
-    const { id } = await params;
+    const { id } = await context.params;
     if (!id) {
       return NextResponse.json({ success: false, message: "无效的ID" }, { status: 400 });
     }
