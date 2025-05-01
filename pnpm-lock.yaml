@@ -95,6 +95,9 @@ importers:
       '@types/bcryptjs':
         specifier: ^3.0.0
         version: 3.0.0
+      '@types/nprogress':
+        specifier: ^0.2.3
+        version: 0.2.3
       '@vercel/analytics':
         specifier: ^1.5.0
         version: 1.5.0(next@15.3.0(@opentelemetry/api@1.9.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react@19.1.0)
@@ -140,6 +143,9 @@ importers:
       nodemailer:
         specifier: ^6.10.1
         version: 6.10.1
+      nprogress:
+        specifier: ^0.2.0
+        version: 0.2.0
       ogl:
         specifier: ^1.0.11
         version: 1.0.11
@@ -1820,6 +1826,9 @@ packages:
   '@types/node@22.15.3':
     resolution: {integrity: sha512-lX7HFZeHf4QG/J7tBZqrCAXwz9J5RD56Y6MpP0eJkka8p+K0RY/yBTW7CYFJ4VGCclxqOLKmiGP5juQc6MKgcw==}
 
+  '@types/nprogress@0.2.3':
+    resolution: {integrity: sha512-k7kRA033QNtC+gLc4VPlfnue58CM1iQLgn1IMAU8VPHGOj7oIHPp9UlhedEnD/Gl8evoCjwkZjlBORtZ3JByUA==}
+
   '@types/phoenix@1.6.6':
     resolution: {integrity: sha512-PIzZZlEppgrpoT2QgbnDU+MMzuR6BbCjllj0bM70lWoejMeNJAxCchxnv7J3XFkI8MpygtRpzXrIlmWUBclP5A==}
 
@@ -3313,6 +3322,9 @@ packages:
 
   normalize-wheel@1.0.1:
     resolution: {integrity: sha512-1OnlAPZ3zgrk8B91HyRj+eVv+kS5u+Z0SCsak6Xil/kmgEia50ga7zfkumayonZrImffAxPU/5WcyGhzetHNPA==}
+
+  nprogress@0.2.0:
+    resolution: {integrity: sha512-I19aIingLgR1fmhftnbWWO3dXc0hSxqHQHQb3H8m+K3TnEn/iSeTZZOyvKXWqQESMwuUVnatlCnZdLBZZt2VSA==}
 
   oauth4webapi@3.5.0:
     resolution: {integrity: sha512-DF3mLWNuxPkxJkHmWxbSFz4aE5CjWOsm465VBfBdWzmzX4Mg3vF8icxK+iKqfdWrIumBJ2TaoNQWx+SQc2bsPQ==}
@@ -5669,6 +5681,8 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
+  '@types/nprogress@0.2.3': {}
+
   '@types/phoenix@1.6.6': {}
 
   '@types/qs@6.9.18': {}
@@ -7350,6 +7364,8 @@ snapshots:
   normalize-range@0.1.2: {}
 
   normalize-wheel@1.0.1: {}
+
+  nprogress@0.2.0: {}
 
   oauth4webapi@3.5.0: {}
 
