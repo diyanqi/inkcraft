@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import NProgress from 'nprogress';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import 'nprogress/nprogress.css';
 
 // 配置 NProgress
@@ -25,7 +25,6 @@ if (typeof document !== 'undefined') {
 
 export function LoadingBar() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
 
   useEffect(() => {
     NProgress.start();
@@ -38,7 +37,7 @@ export function LoadingBar() {
       clearTimeout(timer);
       NProgress.done();
     };
-  }, [pathname, searchParams]);
+  }, [pathname]);
 
   return null;
 }
