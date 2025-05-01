@@ -149,6 +149,8 @@ export default function CreatePage() {
     const [isReferenceOCRLoading, setIsReferenceOCRLoading] = useState(false)
     const [isEssayOCRLoading, setIsEssayOCRLoading] = useState(false)
     const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+    // 新增loading状态
+    const [isCorrectionLoading, setIsCorrectionLoading] = useState(false)
 
     // react-image-crop states
     const [imageSrc, setImageSrc] = useState<string | null>(null) // Original image data URL
@@ -239,6 +241,7 @@ export default function CreatePage() {
     })
 
     const onSubmit = async (values: z.infer<typeof formSchema>) => {
+        setIsCorrectionLoading(true);
         try {
             const res = await fetch('/api/correction/create', {
                 method: 'POST',
@@ -254,6 +257,8 @@ export default function CreatePage() {
             }
         } catch (e) {
             toast.error('请求出错');
+        } finally {
+            setIsCorrectionLoading(false);
         }
     };
     // Handle image load in the cropper - Set default 80% crop here
@@ -868,5 +873,16 @@ export default function CreatePage() {
                 </Button>
             </div> */}
         </div>
+    )
+}
+
+
+// 按钮loading组件
+function ButtonLoading() {
+    return (
+        <Button disabled>
+            <Loader2 className="animate-spin mr-2" />
+            请稍候
+        </Button>
     )
 }

@@ -17,7 +17,7 @@ if (typeof document !== 'undefined') {
   const style = document.createElement('style');
   style.textContent = `
     #nprogress .bar {
-      height: 4px !important;
+      height: 3px !important;
     }
   `;
   document.head.appendChild(style);
