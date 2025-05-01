@@ -17,7 +17,7 @@ export function useCorrectionHistory() {
   const fetchHistory = useCallback(async () => {
     try {
       const response = await fetch(
-        `/api/corrections/history?limit=${limit}&skip=${skip}`
+        `/api/correction/history?limit=${limit}&skip=${skip}`
       )
       if (!response.ok) throw new Error("获取历史记录失败")
       

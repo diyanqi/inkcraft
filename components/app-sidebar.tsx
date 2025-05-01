@@ -127,7 +127,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const userData = {
     name: session?.user?.name || session?.user?.email || "游客",
     email: session?.user?.email || "",
-    avatar: session?.user?.image || "/avatars/default.jpg",
+    avatar: session?.user?.image || `https://cn.cravatar.com/avatar/${session?.user?.email ? require('crypto').createHash('md5').update(session.user.email).digest('hex') : ''}`,
   }
 
   return (

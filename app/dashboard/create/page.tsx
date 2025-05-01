@@ -1,5 +1,9 @@
 'use client'
 
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useForm } from "react-hook-form"
+import { z } from "zod"
+import { useRouter } from "next/navigation"
 import {
     Drawer,
     DrawerClose,
@@ -9,6 +13,15 @@ import {
     DrawerHeader,
     DrawerTitle,
 } from "@/components/ui/drawer"
+import {
+    Form,
+    FormControl,
+    FormDescription,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage,
+} from "@/components/ui/form"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -199,29 +212,48 @@ export default function CreatePage() {
         e.preventDefault()
     }
 
-    // 新增：批改提交处理
-    const router = require('next/navigation').useRouter?.() || null;
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const handleCorrectionSubmit = async () => {
-        setIsSubmitting(true);
+    // 表单验证schema
+    const formSchema = z.object({
+        title: z.string().min(0, { message: "请输入标题" }),
+        originalText: z.string().min(1, { message: "请输入原题题干" }),
+        referenceText: z.string().min(0, { message: "请输入参考范文" }),
+        essayType: z.string().min(1, { message: "请选择作文类型" }),
+        essayText: z.string().min(1, { message: "请输入习作" }),
+        model: z.string().min(1, { message: "请选择模型" }),
+        tone: z.string().min(1, { message: "请选择语气" })
+    })
+
+    // 表单处理
+    const router = useRouter();
+    const form = useForm<z.infer<typeof formSchema>>({
+        resolver: zodResolver(formSchema),
+        defaultValues: {
+            title: "",
+            originalText,
+            referenceText,
+            essayType: "gaokao-english-continuation",
+            essayText,
+            model: "gpt4",
+            tone: "default"
+        }
+    })
+
+    const onSubmit = async (values: z.infer<typeof formSchema>) => {
         try {
-            // 实际开发中应收集页面所有内容，这里仅发送空对象，后端用测试数据
             const res = await fetch('/api/correction/create', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({})
+                body: JSON.stringify(values)
             });
             const data = await res.json();
             if (data.success && data.id) {
                 toast.success('批改创建成功，正在跳转...');
-                if (router) router.push(`/dashboard/correction/${data.id}`);
+                router.push(`/dashboard/correction/${data.id}`);
             } else {
                 toast.error(data.message || '批改创建失败');
             }
         } catch (e) {
             toast.error('请求出错');
-        } finally {
-            setIsSubmitting(false);
         }
     };
     // Handle image load in the cropper - Set default 80% crop here
@@ -338,11 +370,6 @@ export default function CreatePage() {
             reference: setIsReferenceOCRLoading,
             essay: setIsEssayOCRLoading,
         }[inputType]
-        const setText = {
-            original: setOriginalText,
-            reference: setReferenceText,
-            essay: setEssayText,
-        }[inputType]
 
         setLoading(true)
         try {
@@ -364,7 +391,13 @@ export default function CreatePage() {
 
             const data = await res.json()
             if (res.ok && data.success) {
-                setText(data.text)
+                // 使用form.setValue更新表单字段
+                const fieldMap = {
+                    original: 'originalText',
+                    reference: 'referenceText',
+                    essay: 'essayText'
+                }[inputType] as 'originalText' | 'referenceText' | 'essayText';
+                form.setValue(fieldMap, data.text)
                 toast.success("识别成功")
             } else {
                 // Log the full error response from the server
@@ -576,136 +609,209 @@ export default function CreatePage() {
     return (
         <div className="flex flex-col gap-4 p-4 md:p-6">
             <h1 className="text-2xl font-bold tracking-tight">新建批改任务</h1>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                {/* First Card: Question Input */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-lg">题干录入</CardTitle>
-                        <CardDescription>录入并匹配原题，提供精准化解析。</CardDescription>
-                    </CardHeader>
-                    <CardContent className="grid gap-4">
-                        <div className="grid w-full gap-1.5">
-                            <Label htmlFor="title" className="text-md">标题 <span className="text-sm text-muted-foreground">*可选</span></Label>
-                            <input
-                                type="text"
-                                id="title"
-                                placeholder="留白以自动生成"
-                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                            />
-                        </div>
-                        <div className="grid w-auto max-w-3xl gap-1.5">
-                            <Label htmlFor="original-text" className="text-md">原题题干</Label>
-                            <Textarea
-                                placeholder="在这里输入原题题干…"
-                                id="original-text"
-                                className="max-h-[7lh]"
-                                value={originalText}
-                                onChange={(e) => setOriginalText(e.target.value)}
-                            />
-                            <div className="flex justify-end">
-                                <OCRButton
-                                    isLoading={isOriginalOCRLoading}
-                                    inputType="original"
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                        {/* First Card: Question Input */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-lg">题干录入</CardTitle>
+                                <CardDescription>录入并匹配原题，提供精准化解析。</CardDescription>
+                            </CardHeader>
+                            <CardContent className="grid gap-4">
+                                <FormField
+                                    control={form.control}
+                                    name="title"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>标题 <span className="text-sm text-muted-foreground">*可选</span></FormLabel>
+                                            <FormControl>
+                                                <input
+                                                    type="text"
+                                                    placeholder="留白以自动生成"
+                                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                                    {...field}
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
                                 />
-                            </div>
-                        </div>
-                        <div className="grid w-auto max-w-3xl gap-1.5">
-                            <Label htmlFor="reference-text" className="text-md">参考范文 <span className="text-sm text-muted-foreground">*可选</span></Label>
-                            <Textarea
-                                placeholder="在这里输入参考范文…"
-                                id="reference-text"
-                                className="max-h-[7lh]"
-                                value={referenceText}
-                                onChange={(e) => setReferenceText(e.target.value)}
-                            />
-                            <div className="flex justify-end">
-                                <OCRButton
-                                    isLoading={isReferenceOCRLoading}
-                                    inputType="reference"
+                                <FormField
+                                    control={form.control}
+                                    name="originalText"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>原题题干</FormLabel>
+                                            <FormControl>
+                                                <div className="grid w-auto max-w-3xl gap-1.5">
+                                                    <Textarea
+                                                        placeholder="在这里输入原题题干…"
+                                                        className="max-h-[7lh]"
+                                                        {...field}
+                                                    />
+                                                    <div className="flex justify-end">
+                                                        <OCRButton
+                                                            isLoading={isOriginalOCRLoading}
+                                                            inputType="original"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
                                 />
-                            </div>
-                        </div>
-                        <div className="grid w-auto max-w-3xl gap-1.5">
-                            <Label htmlFor="essay-type" className="text-md">作文类型</Label>
-                            <Select>
-                                <SelectTrigger className="w-[180px]">
-                                    <SelectValue placeholder="选择类型" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="gaokao-english-continuation">高考英语 读后续写</SelectItem>
-                                    <SelectItem value="gaokao-english-practical" disabled>高考英语 应用文</SelectItem>
-                                    <SelectItem value="gaokao-chinese-composition" disabled>高考语文 作文</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </CardContent>
-                </Card>
+                                <FormField
+                                    control={form.control}
+                                    name="referenceText"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>参考范文 <span className="text-sm text-muted-foreground">*可选</span></FormLabel>
+                                            <FormControl>
+                                                <div className="grid w-auto max-w-3xl gap-1.5">
+                                                    <Textarea
+                                                        placeholder="在这里输入参考范文…"
+                                                        className="max-h-[7lh]"
+                                                        {...field}
+                                                    />
+                                                    <div className="flex justify-end">
+                                                        <OCRButton
+                                                            isLoading={isReferenceOCRLoading}
+                                                            inputType="reference"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="essayType"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>作文类型</FormLabel>
+                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                <FormControl>
+                                                    <SelectTrigger className="w-[180px]">
+                                                        <SelectValue placeholder="选择类型" />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="gaokao-english-continuation">高考英语 读后续写</SelectItem>
+                                                    <SelectItem value="gaokao-english-practical" disabled>高考英语 应用文</SelectItem>
+                                                    <SelectItem value="gaokao-chinese-composition" disabled>高考语文 作文</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </CardContent>
+                        </Card>
 
-                {/* Second Card: Essay Input */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-lg">文章录入</CardTitle>
-                        <CardDescription>录入待批改的作文，支持文字识别。</CardDescription>
-                    </CardHeader>
-                    <CardContent className="grid gap-4">
-                        <div className="grid w-full gap-1.5">
-                            <Label htmlFor="essay-text" className="text-md">录入习作</Label>
-                            <Textarea
-                                placeholder="在这里输入你的作文…"
-                                id="essay-text"
-                                className="max-h-[14lh]"
-                                value={essayText}
-                                onChange={(e) => setEssayText(e.target.value)}
-                            />
-                            <div className="flex justify-end">
-                                <OCRButton
-                                    isLoading={isEssayOCRLoading}
-                                    inputType="essay"
+                        {/* Second Card: Essay Input */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-lg">文章录入</CardTitle>
+                                <CardDescription>录入待批改的作文，支持文字识别。</CardDescription>
+                            </CardHeader>
+                            <CardContent className="grid gap-4">
+                                <FormField
+                                    control={form.control}
+                                    name="essayText"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>录入习作</FormLabel>
+                                            <FormControl>
+                                                <div className="grid w-full gap-1.5">
+                                                    <Textarea
+                                                        placeholder="在这里输入你的作文…"
+                                                        className="max-h-[14lh]"
+                                                        {...field}
+                                                    />
+                                                    <div className="flex justify-end">
+                                                        <OCRButton
+                                                            isLoading={isEssayOCRLoading}
+                                                            inputType="essay"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
                                 />
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                            </CardContent>
+                        </Card>
 
-                {/* Third Card: Correction Options */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-lg">批改选项</CardTitle>
-                        <CardDescription>在这里自定义生成结果的展示内容。</CardDescription>
-                    </CardHeader>
-                    <CardContent className="grid gap-4">
-                        <div className="grid w-auto max-w-3xl gap-1.5">
-                            <Label className="text-md">选择模型</Label>
-                            <Select defaultValue="gpt4">
-                                <SelectTrigger className="w-[180px]">
-                                    <SelectValue placeholder="选择模型" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="gpt4">GPT-4o</SelectItem>
-                                    <SelectItem value="llama">Meta Llama</SelectItem>
-                                    <SelectItem value="deepseek">Deepseek-v3</SelectItem>
-                                    <SelectItem value="gemini">Google Gemini</SelectItem>
-                                    <SelectItem value="qwen">通义千问</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="grid w-auto max-w-3xl gap-1.5">
-                            <Label className="text-md">讲解语气 <span className="text-sm text-muted-foreground">*实验性</span></Label>
-                            <Select defaultValue="default">
-                                <SelectTrigger className="w-[180px]">
-                                    <SelectValue placeholder="选择语气" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="default">默认</SelectItem>
-                                    <SelectItem value="serious">一本正经</SelectItem>
-                                    <SelectItem value="humorous">幽默风趣</SelectItem>
-                                    <SelectItem value="sharp">犀利锐评</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
+                        {/* Third Card: Correction Options */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-lg">批改选项</CardTitle>
+                                <CardDescription>在这里自定义生成结果的展示内容。</CardDescription>
+                            </CardHeader>
+                            <CardContent className="grid gap-4">
+                                <FormField
+                                    control={form.control}
+                                    name="model"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>选择模型</FormLabel>
+                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                <FormControl>
+                                                    <SelectTrigger className="w-[180px]">
+                                                        <SelectValue placeholder="选择模型" />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="gpt4">GPT-4o</SelectItem>
+                                                    <SelectItem value="llama">Meta Llama</SelectItem>
+                                                    <SelectItem value="deepseek">Deepseek-v3</SelectItem>
+                                                    <SelectItem value="gemini">Google Gemini</SelectItem>
+                                                    <SelectItem value="qwen">通义千问</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="tone"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>讲解语气 <span className="text-sm text-muted-foreground">*实验性</span></FormLabel>
+                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                <FormControl>
+                                                    <SelectTrigger className="w-[180px]">
+                                                        <SelectValue placeholder="选择语气" />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="default">默认</SelectItem>
+                                                    <SelectItem value="serious">一本正经</SelectItem>
+                                                    <SelectItem value="humorous">幽默风趣</SelectItem>
+                                                    <SelectItem value="sharp">犀利锐评</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    <div className="flex justify-end mt-8">
+                        <Button type="submit" className="rounded-md bg-primary px-3.5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                            <Check /> 开始批改
+                        </Button>
+                    </div>
+                </form>
+            </Form>
 
             {/* Unified Component for Cropper */}
             {
@@ -751,7 +857,7 @@ export default function CreatePage() {
             }
 
 
-            <div className="flex justify-end mt-8">
+            {/* <div className="flex justify-end mt-8">
                 <Button
                     type="button"
                     className="rounded-md bg-primary px-3.5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
@@ -760,7 +866,7 @@ export default function CreatePage() {
                 >
                     <Check /> 开始批改
                 </Button>
-            </div>
+            </div> */}
         </div>
     )
 }

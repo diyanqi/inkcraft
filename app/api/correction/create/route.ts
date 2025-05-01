@@ -10,12 +10,12 @@ export async function POST(req: NextRequest) {
     }
     // 获取前端传递的数据（实际开发中应校验数据）
     // 这里只用测试数据
-    // const body = await req.json();
+    const body = await req.json();
     const testData = {
       title: "测试批改标题",
       icon: "📝",
       model: "gpt-4",
-      content: "这是测试批改内容。",
+      content: body.essayText,
       score: 9.5,
       user_email: session.user.email,
     };
