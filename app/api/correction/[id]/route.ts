@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { CorrectionUtil } from "@/utils/corrections";
 import { auth } from "@/auth";
 
-export async function GET(req: NextRequest, context: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const session = await auth();
     if (!session || !session.user?.email) {
       return NextResponse.json({ success: false, message: "未登录或无效用户" }, { status: 401 });
     }
 
-    const { id } = await context.params;
+    const { id } = await params;
     if (!id) {
       return NextResponse.json({ success: false, message: "无效的ID" }, { status: 400 });
     }
