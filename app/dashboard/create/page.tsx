@@ -199,6 +199,31 @@ export default function CreatePage() {
         e.preventDefault()
     }
 
+    // 新增：批改提交处理
+    const router = require('next/navigation').useRouter?.() || null;
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const handleCorrectionSubmit = async () => {
+        setIsSubmitting(true);
+        try {
+            // 实际开发中应收集页面所有内容，这里仅发送空对象，后端用测试数据
+            const res = await fetch('/api/correction/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            });
+            const data = await res.json();
+            if (data.success && data.id) {
+                toast.success('批改创建成功，正在跳转...');
+                if (router) router.push(`/dashboard/correction/${data.id}`);
+            } else {
+                toast.error(data.message || '批改创建失败');
+            }
+        } catch (e) {
+            toast.error('请求出错');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
     // Handle image load in the cropper - Set default 80% crop here
     const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
         imgRef.current = e.currentTarget;
@@ -208,34 +233,34 @@ export default function CreatePage() {
         // This logic runs when a *new* image is loaded.
         // When re-entering crop mode for the *same* image, we'll use the completedCrop.
         if (!crop && !completedCrop) { // Only set default if no crop is already defined
-             const initialCrop: PercentCrop = { // <-- Changed type to PercentCrop
-                 unit: '%', // Use percentage units
-                 width: 80, // 80% width
-                 height: 80, // 80% height
-                 x: 0, // Temporary x, centerCrop will calculate
-                 y: 0, // Temporary y, centerCrop will calculate
-             };
+            const initialCrop: PercentCrop = { // <-- Changed type to PercentCrop
+                unit: '%', // Use percentage units
+                width: 80, // 80% width
+                height: 80, // 80% height
+                x: 0, // Temporary x, centerCrop will calculate
+                y: 0, // Temporary y, centerCrop will calculate
+            };
 
-             // Center the calculated crop
-             const centeredCrop = centerCrop(initialCrop, width, height);
+            // Center the calculated crop
+            const centeredCrop = centerCrop(initialCrop, width, height);
 
-             // Set the calculated centered crop as the initial crop state
-             setCrop(centeredCrop);
+            // Set the calculated centered crop as the initial crop state
+            setCrop(centeredCrop);
 
-             // Also immediately calculate and set the completed crop based on this default
-             // This allows the preview to show right away and the "确认识别" button to be enabled
-             // without the user needing to drag.
-             if (imgRef.current && centeredCrop.width && centeredCrop.height && centeredCrop.unit === '%') {
-                  // Need to convert percentage crop to pixel crop for completedCrop
-                  const pixelCrop: PixelCrop = {
-                      x: (centeredCrop.x / 100) * width,
-                      y: (centeredCrop.y / 100) * height,
-                      width: (centeredCrop.width / 100) * width,
-                      height: (centeredCrop.height / 100) * height,
-                      unit: 'px' // completedCrop is typically in pixels
-                  };
-                 setCompletedCrop(pixelCrop);
-             }
+            // Also immediately calculate and set the completed crop based on this default
+            // This allows the preview to show right away and the "确认识别" button to be enabled
+            // without the user needing to drag.
+            if (imgRef.current && centeredCrop.width && centeredCrop.height && centeredCrop.unit === '%') {
+                // Need to convert percentage crop to pixel crop for completedCrop
+                const pixelCrop: PixelCrop = {
+                    x: (centeredCrop.x / 100) * width,
+                    y: (centeredCrop.y / 100) * height,
+                    width: (centeredCrop.width / 100) * width,
+                    height: (centeredCrop.height / 100) * height,
+                    unit: 'px' // completedCrop is typically in pixels
+                };
+                setCompletedCrop(pixelCrop);
+            }
         }
 
 
@@ -259,8 +284,8 @@ export default function CreatePage() {
                     reader.readAsDataURL(blob)
                 }
             }).catch(error => {
-                 console.error("Failed to create canvas preview:", error);
-                 toast.error("生成图片预览失败");
+                console.error("Failed to create canvas preview:", error);
+                toast.error("生成图片预览失败");
             });
         } else {
             setCroppedImageSrc(null); // Clear preview if crop is cleared
@@ -348,11 +373,11 @@ export default function CreatePage() {
             }
         } catch (err) {
             console.error("OCR Fetch or Processing Error:", err); // Log the actual error
-             // Display a user-friendly message, possibly based on the error
+            // Display a user-friendly message, possibly based on the error
             if (err instanceof Error) {
-                 toast.error(`OCR 失败: ${err.message}`);
+                toast.error(`OCR 失败: ${err.message}`);
             } else {
-                 toast.error("OCR 失败，请重试");
+                toast.error("OCR 失败，请重试");
             }
         } finally {
             setLoading(false)
@@ -436,15 +461,15 @@ export default function CreatePage() {
                         crop={crop}
                         onChange={(_: any, percentCrop: any) => setCrop(percentCrop)}
                         onComplete={(c: any) => setCompletedCrop(c)}
-                         // Add the custom class for styling the overlay
+                        // Add the custom class for styling the overlay
                         className="ios-crop-overlay"
-                        // No 'aspect' prop for freeform cropping
-                        // ruleOfThirds // Optional: show grid lines
-                        // circularCrop // Optional: circular crop
-                        // minWidth, minHeight, maxWidth, maxHeight can be added here
-                        // disabled={isLoading} // Disable crop while loading?
+                    // No 'aspect' prop for freeform cropping
+                    // ruleOfThirds // Optional: show grid lines
+                    // circularCrop // Optional: circular crop
+                    // minWidth, minHeight, maxWidth, maxHeight can be added here
+                    // disabled={isLoading} // Disable crop while loading?
                     >
-                         {/* The image element that ReactCrop works on */}
+                        {/* The image element that ReactCrop works on */}
                         <img
                             ref={imgRef}
                             alt="Crop me"
@@ -457,7 +482,7 @@ export default function CreatePage() {
                 </div>
             )}
             {imageSrc && !isCropMode && croppedImageSrc && (
-                 <div className="flex flex-col items-center gap-4">
+                <div className="flex flex-col items-center gap-4">
                     <img
                         src={croppedImageSrc}
                         alt="Cropped preview"
@@ -471,32 +496,32 @@ export default function CreatePage() {
                             <RotateCcw className="w-4 h-4 mr-1" /> 重新选择
                         </Button>
                         <Button
-                             onClick={() => {
+                            onClick={() => {
                                 // Set the crop state to the last completed crop before re-entering crop mode
                                 if (completedCrop) {
-                                     setCrop(completedCrop);
+                                    setCrop(completedCrop);
                                 }
                                 setIsCropMode(true); // Go back to crop mode
-                             }}
+                            }}
                             variant="ghost"
                         >
                             <CropIcon className="w-4 h-4 mr-2" /> 重新裁剪 {/* Use CropIcon */}
                         </Button>
                     </div>
-                 </div>
+                </div>
             )}
-             {/* Handle the case where imageSrc is set but not in crop mode and no croppedImageSrc (shouldn't happen often with current logic) */}
-             {imageSrc && !isCropMode && !croppedImageSrc && (
-                 <div className="flex flex-col items-center gap-4">
+            {/* Handle the case where imageSrc is set but not in crop mode and no croppedImageSrc (shouldn't happen often with current logic) */}
+            {imageSrc && !isCropMode && !croppedImageSrc && (
+                <div className="flex flex-col items-center gap-4">
                     <p className="text-muted-foreground">请选择或裁剪图片</p>
-                     <Button
-                         onClick={resetImageStates} // Use reset function
-                         variant="ghost"
-                     >
-                         <RotateCcw className="w-4 h-4 mr-1" /> 重新选择
-                     </Button>
-                 </div>
-             )}
+                    <Button
+                        onClick={resetImageStates} // Use reset function
+                        variant="ghost"
+                    >
+                        <RotateCcw className="w-4 h-4 mr-1" /> 重新选择
+                    </Button>
+                </div>
+            )}
         </div>
     );
 
@@ -534,8 +559,8 @@ export default function CreatePage() {
                 </>
             ) : null}
             {/* Simplified cancel button logic */}
-             {/* This '取消' button closes the modal/drawer entirely */}
-             <Button
+            {/* This '取消' button closes the modal/drawer entirely */}
+            <Button
                 variant="outline"
                 onClick={() => {
                     setIsDrawerOpen(false);
@@ -714,7 +739,7 @@ export default function CreatePage() {
                                 <DrawerTitle>文字识别</DrawerTitle>
                                 <DrawerDescription>选择图片并裁剪</DrawerDescription>
                             </DrawerHeader>
-                             <div className="flex-grow overflow-y-auto"> {/* Added flex-grow and overflow */}
+                            <div className="flex-grow overflow-y-auto"> {/* Added flex-grow and overflow */}
                                 {renderCropperContent()}
                             </div>
                             <DrawerFooter className="flex flex-row justify-end gap-2">
@@ -730,6 +755,8 @@ export default function CreatePage() {
                 <Button
                     type="button"
                     className="rounded-md bg-primary px-3.5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                    onClick={handleCorrectionSubmit}
+                    disabled={isSubmitting}
                 >
                     <Check /> 开始批改
                 </Button>

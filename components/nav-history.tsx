@@ -5,7 +5,6 @@ import {
   IconFolder,
   IconShare3,
   IconTrash,
-  type Icon,
 } from "@tabler/icons-react"
 
 import {
@@ -24,29 +23,62 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { Skeleton } from "@/components/ui/skeleton"
+import { useCorrectionHistory } from "@/hooks/use-correction-history"
+import { useRouter } from "next/navigation"
 
-export function NavHistory({
-  items,
-}: {
-  items: {
-    name: string
-    url: string
-    icon: Icon
-  }[]
-}) {
+export function NavHistory() {
   const { isMobile } = useSidebar()
+  const { history, loading, hasMore, loadMore } = useCorrectionHistory()
+  const router = useRouter()
+
+  if (loading) {
+    return (
+      <SidebarGroup className="group-data-[collapsible=icon]:hidden">
+        <SidebarGroupLabel>历史批改</SidebarGroupLabel>
+        <SidebarMenu>
+          {Array.from({ length: 3 }).map((_, index) => (
+            <SidebarMenuItem key={index}>
+              <div className="flex items-center gap-2 px-2 py-1.5">
+                <Skeleton className="h-5 w-5 rounded" />
+                <Skeleton className="h-4 w-[120px]" />
+              </div>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+      </SidebarGroup>
+    )
+  }
+
+  if (!loading && history.length === 0) {
+    return (
+      <SidebarGroup className="group-data-[collapsible=icon]:hidden">
+        <SidebarGroupLabel>历史批改</SidebarGroupLabel>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <div className="text-sidebar-foreground/50 px-2 py-1.5 text-xs ">
+              这里空空如也～
+            </div>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarGroup>
+    )
+  }
 
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
       <SidebarGroupLabel>历史批改</SidebarGroupLabel>
       <SidebarMenu>
-        {items.map((item) => (
-          <SidebarMenuItem key={item.name}>
+        {history.map((item) => (
+          <SidebarMenuItem key={item.id}>
             <SidebarMenuButton asChild>
-              <a href={item.url}>
-                <item.icon />
-                <span>{item.name}</span>
-              </a>
+              <div 
+                onClick={() => router.push(`/dashboard/correction/${item.id}`)} 
+                className="cursor-pointer"
+              >
+                <span className="text-xs">{item.icon}</span>
+                <span>{item.title}</span>
+              </div>
             </SidebarMenuButton>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -55,7 +87,7 @@ export function NavHistory({
                   className="data-[state=open]:bg-accent rounded-sm"
                 >
                   <IconDots />
-                  <span className="sr-only">加载更多</span>
+                  <span className="sr-only">更多操作</span>
                 </SidebarMenuAction>
               </DropdownMenuTrigger>
               <DropdownMenuContent
@@ -65,27 +97,32 @@ export function NavHistory({
               >
                 <DropdownMenuItem>
                   <IconFolder />
-                  <span>Open</span>
+                  <span>打开</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem>
                   <IconShare3 />
-                  <span>Share</span>
+                  <span>分享</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem variant="destructive">
                   <IconTrash />
-                  <span>Delete</span>
+                  <span>删除</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </SidebarMenuItem>
         ))}
-        <SidebarMenuItem>
-          <SidebarMenuButton className="text-sidebar-foreground/70">
-            <IconDots className="text-sidebar-foreground/70" />
-            <span>加载更多</span>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
+        {hasMore && (
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={loadMore}
+              className="text-sidebar-foreground/70"
+            >
+              <IconDots className="text-sidebar-foreground/70" />
+              <span>加载更多</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        )}
       </SidebarMenu>
     </SidebarGroup>
   )

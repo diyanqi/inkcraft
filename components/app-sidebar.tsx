@@ -118,23 +118,7 @@ const data = {
       icon: IconSearch,
     },
   ],
-  history: [
-    {
-      name: "A rescue in a bottle",
-      url: "#",
-      icon: IconAlignBoxLeftTop,
-    },
-    {
-      name: "Bikers",
-      url: "#",
-      icon: IconAlignBoxLeftTop,
-    },
-    {
-      name: "Non-feathered angles",
-      url: "#",
-      icon: IconAlignBoxLeftTop,
-    },
-  ],
+
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -165,7 +149,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavHistory items={data.history} />
+        <NavHistory />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
