@@ -248,15 +248,59 @@ export default function CreatePage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(values)
             });
-            const data = await res.json();
-            if (data.success && data.id) {
-                toast.success('批改创建成功，正在跳转...');
-                router.push(`/dashboard/correction/${data.id}`);
-            } else {
-                toast.error(data.message || '批改创建失败');
+
+            // 获取响应的可读流
+            const reader = res.body?.getReader();
+            if (!reader) {
+                throw new Error('无法获取响应流');
+            }
+
+            // 用于存储累积的文本数据
+            let accumulatedData = '';
+
+            // 循环读取流数据
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                // 将 Uint8Array 转换为文本
+                const chunk = new TextDecoder().decode(value);
+                accumulatedData += chunk;
+
+                // 尝试处理完整的消息
+                const lines = accumulatedData.split('\n');
+                accumulatedData = lines.pop() || ''; // 保存最后一个不完整的行
+
+                for (const line of lines) {
+                    if (!line.trim()) continue;
+
+                    try {
+                        const message = JSON.parse(line);
+                        switch (message.type) {
+                            case 'progress':
+                                toast.info(message.content);
+                                break;
+                            case 'error':
+                                toast.error(message.content);
+                                break;
+                            case 'success':
+                                if (message.id) {
+                                    toast.success('批改创建成功，正在跳转...');
+                                    router.push(`/dashboard/correction/${message.id}`);
+                                    return;
+                                }
+                                break;
+                            default:
+                                console.log('未知消息类型:', message);
+                        }
+                    } catch (e) {
+                        console.error('解析消息失败:', e);
+                    }
+                }
             }
         } catch (e) {
             toast.error('请求出错');
+            console.error('Stream error:', e);
         } finally {
             setIsCorrectionLoading(false);
         }
@@ -809,11 +853,18 @@ export default function CreatePage() {
                             </CardContent>
                         </Card>
                     </div>
-
                     <div className="flex justify-end mt-8">
-                        <Button type="submit" className="rounded-md bg-primary px-3.5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-                            <Check /> 开始批改
-                        </Button>
+                        {!isCorrectionLoading && (
+                            <Button type="submit" className="rounded-md bg-primary px-3.5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                                <Check /> 开始批改
+                            </Button>
+                        )}
+                        {isCorrectionLoading && (
+                            <Button disabled>
+                                <Loader2 className="animate-spin mr-2" />
+                                正在批改
+                            </Button>
+                        )}
                     </div>
                 </form>
             </Form>
@@ -860,29 +911,6 @@ export default function CreatePage() {
                     </Drawer>
                 )
             }
-
-
-            {/* <div className="flex justify-end mt-8">
-                <Button
-                    type="button"
-                    className="rounded-md bg-primary px-3.5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                    onClick={handleCorrectionSubmit}
-                    disabled={isSubmitting}
-                >
-                    <Check /> 开始批改
-                </Button>
-            </div> */}
         </div>
-    )
-}
-
-
-// 按钮loading组件
-function ButtonLoading() {
-    return (
-        <Button disabled>
-            <Loader2 className="animate-spin mr-2" />
-            请稍候
-        </Button>
     )
 }

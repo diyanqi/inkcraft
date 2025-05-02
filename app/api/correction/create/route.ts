@@ -18,6 +18,11 @@ const deepseek = createOpenAI({
 })
 
 export async function POST(req: NextRequest) {
+  console.debug("debug0");
+  const encoder = new TextEncoder();
+  const stream = new TransformStream();
+  const writer = stream.writable.getWriter();
+  console.debug("debug1");
   try {
     const session = await auth();
     if (!session || !session.user?.email) {
@@ -29,11 +34,15 @@ export async function POST(req: NextRequest) {
     if (!body.originalText || !body.essayText || !body.model || !body.essayType || !body.tone) {
       return NextResponse.json({ success: false, message: "缺少必要参数" }, { status: 400 });
     }
+    console.debug("debug2");
 
     let content = "";
     // 接下来生成初步的 content
     content = `# 1. 题目\n${body.originalText}\n# 2. 我的续写\n${body.essayText}\n`;
 
+    // 发送开始批改的消息
+    await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'progress', message: '开始批改作文...' })}\n\n`));
+    console.debug("debug3");
     // 调用OpenAI API，生成批改分数结果
     // const model = deepseek('deepseek-chat');
     const model = openai('@cf/meta/llama-3.3-70b-instruct-fp8-fast');
@@ -252,6 +261,9 @@ ${body.essayText}
     content += `\n## 总分\n${score}分`;
 
     const fastModel = openai('@cf/meta/llama-3.1-8b-instruct-fast');
+    // 发送批改完成的消息
+    await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'progress', message: '批改完成，正在生成标题...' })}\n\n`));
+
     // 生成标题
     let title = "";
     if (body.title && body.title.length > 0) {
@@ -273,6 +285,9 @@ ${body.essayText}
       });
       title = titleResponse;
     }
+
+    // 发送标题生成完成的消息
+    await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'progress', message: '标题生成完成，正在生成图标...' })}\n\n`));
 
     // 生成图标
     const { text: icon } = await generateText({
@@ -300,8 +315,29 @@ ${body.essayText}
     };
     const util = new CorrectionUtil();
     const result = await util.create(testData);
-    return NextResponse.json({ success: true, id: result.id });
+    
+    // 发送完成消息
+    await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'complete', id: result.id })}\n\n`));
+    await writer.close();
+    
+    return new Response(stream.readable, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+    });
   } catch (e) {
-    return NextResponse.json({ success: false, message: "批改创建失败", error: String(e) }, { status: 500 });
+    if (writer) {
+      await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'error', message: "批改创建失败", error: String(e) })}\n\n`));
+      await writer.close();
+    }
+    return new Response(stream.readable, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+    });
   }
 }

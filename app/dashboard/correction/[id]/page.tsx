@@ -5,6 +5,25 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 interface Correction {
   id: number;
@@ -25,6 +44,7 @@ export default function CorrectionDetailPage() {
   const [loading, setLoading] = useState(true);
   const [correction, setCorrection] = useState<Correction | null>(null);
   const [error, setError] = useState("");
+  const [exportFormat, setExportFormat] = useState("md");
 
   useEffect(() => {
     async function fetchCorrection() {
@@ -83,12 +103,72 @@ export default function CorrectionDetailPage() {
     return <div className="text-center mt-10">未找到批改记录</div>;
   }
 
+  const handleExport = async () => {
+    if (!correction) return;
+
+    if (exportFormat === "md") {
+      // 原有Markdown导出逻辑
+      const markdownContent = `# ${correction.title}\n\n` +
+        `- 模型: ${correction.model}\n` +
+        `- 分数: ${correction.score}\n` +
+        `- 创建时间: ${new Date(correction.created_at).toLocaleString()}\n` +
+        `- 用户: ${correction.user_email}\n\n` +
+        `${correction.content}`;
+
+      const blob = new Blob([markdownContent], { type: "text/markdown" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${correction.title.replace(/\s+/g, "_")}_批改记录.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } else if (exportFormat === "pdf") {
+      try {
+        // 创建PDF导出内容
+        const markdownContent = `# ${correction.title}\n\n` +
+          `- 模型: ${correction.model}\n` +
+          `- 分数: ${correction.score}\n` +
+          `- 创建时间: ${new Date(correction.created_at).toLocaleString()}\n` +
+          `- 用户: ${correction.user_email}\n\n` +
+          `${correction.content}`;
+
+        // 调用md-to-pdf服务
+        const response = await fetch("https://md-to-pdf.fly.dev", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams({
+            markdown: markdownContent,
+          }),
+        });
+
+        if (!response.ok) throw new Error("PDF生成失败");
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${correction.title.replace(/\s+/g, "_")}_批改记录.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error("PDF导出错误:", error);
+        alert("PDF导出失败，请重试或选择其他格式");
+      }
+    }
+  };
+
   return (
     <article className="w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <header className="mb-8">
         <div className="flex items-center gap-4 mb-4">
           <span className="text-4xl">{correction.icon}</span>
-          <h1 className="text-2xl font-bold">{correction.title}</h1>
+          <h1 className="text-3xl font-bold">{correction.title}</h1>
           <div className="ml-auto text-2xl font-bold text-green-600">{correction.score} 分</div>
         </div>
         <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-500">
@@ -97,6 +177,48 @@ export default function CorrectionDetailPage() {
           <div>创建时间：{new Date(correction.created_at).toLocaleString()}</div>
           <Separator orientation="vertical" />
           <div>用户：{correction.user_email}</div>
+        </div>
+        <div className="flex flex-wrap gap-x-6 -mb-3 mt-3">
+          <div className="ml-auto">
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="secondary">导出</Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>导出</DialogTitle>
+                  <DialogDescription>
+                    选择您需要的格式并导出。
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="name" className="text-right">
+                      导出格式
+                    </Label>
+                    <Select onValueChange={setExportFormat} value={exportFormat}>
+                      <SelectTrigger className="w-[280px]">
+                        <SelectValue placeholder="选择格式" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="md">.md</SelectItem>
+                        <SelectItem value="pdf">.pdf</SelectItem>
+                        <SelectItem value="docx" disabled>.docx</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button type="button" variant="secondary">
+                      取消
+                    </Button>
+                  </DialogClose>
+                  <Button type="submit" onClick={handleExport}>确认导出</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
       </header>
       <Separator />

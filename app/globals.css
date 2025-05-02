@@ -364,3 +364,31 @@
 /* .ios-crop-overlay .ReactCrop__crop-selection {
   border-color: white;
 } */
+
+/* 在你现有的 globals.css 中添加以下内容 */
+@media print {
+  /* 隐藏按钮 */
+  button {
+    display: none !important;
+  }
+  
+  /* 优化打印样式 */
+  article {
+    padding: 0 !important;
+  }
+  
+  /* 确保内容清晰可见 */
+  .prose {
+    color: black !important;
+  }
+  
+  /* 避免分页时被切断的元素 */
+  h1, h2, h3 {
+    break-after: avoid;
+  }
+  
+  /* 确保链接地址显示 */
+  a[href]:after {
+    content: " (" attr(href) ")";
+  }
+}
