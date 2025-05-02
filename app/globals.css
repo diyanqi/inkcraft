@@ -1,3 +1,8 @@
+/* 引入 Lora 字体用于英文 */
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap');
+/* 引入 Noto Serif SC 字体用于中文 */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600&display=swap');
+
 @import "tailwindcss";
 @import "tw-animate-css";
 

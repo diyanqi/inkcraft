@@ -26,11 +26,15 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { useCorrectionHistory } from "@/hooks/use-correction-history"
 import { useRouter } from "next/navigation"
+import { Loader2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import React from "react"
 
 export function NavHistory() {
   const { isMobile } = useSidebar()
   const { history, loading, hasMore, loadMore } = useCorrectionHistory()
   const router = useRouter()
+  const [loadingMore, setLoadingMore] = React.useState(false)
 
   if (loading) {
     return (
@@ -114,13 +118,32 @@ export function NavHistory() {
         ))}
         {hasMore && (
           <SidebarMenuItem>
-            <SidebarMenuButton
-              onClick={loadMore}
-              className="text-sidebar-foreground/70"
-            >
-              <IconDots className="text-sidebar-foreground/70" />
-              <span>加载更多</span>
-            </SidebarMenuButton>
+            {loadingMore ? (
+              <Button disabled className="w-full flex gap-2 justify-center items-center text-sidebar-foreground/70">
+                <Loader2 className="animate-spin" />
+                <span>加载中</span>
+              </Button>
+            ) : (
+              <SidebarMenuButton
+                onClick={async () => {
+                  setLoadingMore(true)
+                  await loadMore()
+                  setLoadingMore(false)
+                }}
+                className="text-sidebar-foreground/70"
+                disabled={loadingMore}
+              >
+                <IconDots className="text-sidebar-foreground/70" />
+                <span>加载更多</span>
+              </SidebarMenuButton>
+            )}
+          </SidebarMenuItem>
+        )}
+        {!hasMore && history.length > 0 && (
+          <SidebarMenuItem>
+            <div className="text-sidebar-foreground/50 px-2 py-1.5 text-xs text-center w-full">
+              我也是有底线的～
+            </div>
           </SidebarMenuItem>
         )}
       </SidebarMenu>
