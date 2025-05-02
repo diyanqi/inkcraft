@@ -209,7 +209,7 @@ export default function CorrectionDetailPage() {
                       导出格式
                     </Label>
                     <Select onValueChange={setExportFormat} value={exportFormat}>
-                      <SelectTrigger className="w-[280px]">
+                      <SelectTrigger className="w-[230px]">
                         <SelectValue placeholder="选择格式" />
                       </SelectTrigger>
                       <SelectContent>
