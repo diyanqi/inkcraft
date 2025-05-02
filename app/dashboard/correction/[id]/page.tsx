@@ -136,7 +136,7 @@ export default function CorrectionDetailPage() {
       } else if (exportFormat === "pdf") {
         // PDF导出逻辑
 
-        const response = await fetch("https://md-to-pdf.fly.dev", {
+        const response = await fetch("https://loose-randi-amzcd-498668ee.koyeb.app", {
           method: "POST",
           headers: {
             "Content-Type": "application/x-www-form-urlencoded",
