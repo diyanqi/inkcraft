@@ -24,6 +24,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Loader2 } from "lucide-react";
+import { unified } from "unified";
+import markdown from "remark-parse";
+import docx from "remark-docx";
+import { saveAs } from "file-saver";
 
 interface Correction {
   id: number;
@@ -45,6 +50,8 @@ export default function CorrectionDetailPage() {
   const [correction, setCorrection] = useState<Correction | null>(null);
   const [error, setError] = useState("");
   const [exportFormat, setExportFormat] = useState("md");
+  const [loadingExport, setLoadingExport] = useState(false);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     async function fetchCorrection() {
@@ -106,8 +113,8 @@ export default function CorrectionDetailPage() {
   const handleExport = async () => {
     if (!correction) return;
 
-    if (exportFormat === "md") {
-      // 原有Markdown导出逻辑
+    setLoadingExport(true); // 开始导出时设置加载状态
+    try {
       const markdownContent = `# ${correction.title}\n\n` +
         `- 模型: ${correction.model}\n` +
         `- 分数: ${correction.score}\n` +
@@ -115,26 +122,20 @@ export default function CorrectionDetailPage() {
         `- 用户: ${correction.user_email}\n\n` +
         `${correction.content}`;
 
-      const blob = new Blob([markdownContent], { type: "text/markdown" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${correction.title.replace(/\s+/g, "_")}_批改记录.md`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } else if (exportFormat === "pdf") {
-      try {
-        // 创建PDF导出内容
-        const markdownContent = `# ${correction.title}\n\n` +
-          `- 模型: ${correction.model}\n` +
-          `- 分数: ${correction.score}\n` +
-          `- 创建时间: ${new Date(correction.created_at).toLocaleString()}\n` +
-          `- 用户: ${correction.user_email}\n\n` +
-          `${correction.content}`;
+      if (exportFormat === "md") {
+        // 原有Markdown导出逻辑
+        const blob = new Blob([markdownContent], { type: "text/markdown" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${correction.title.replace(/\s+/g, "_")}_批改记录.md`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } else if (exportFormat === "pdf") {
+        // PDF导出逻辑
 
-        // 调用md-to-pdf服务
         const response = await fetch("https://md-to-pdf.fly.dev", {
           method: "POST",
           headers: {
@@ -156,10 +157,21 @@ export default function CorrectionDetailPage() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-      } catch (error) {
-        console.error("PDF导出错误:", error);
-        alert("PDF导出失败，请重试或选择其他格式");
+      } else if (exportFormat === "docx") {
+        // Docx 导出逻辑
+        // @ts-ignore
+        const processor = unified().use(markdown).use(docx, { output: "blob" });
+
+        const doc = await processor.process(markdownContent);
+        const blob = await doc.result as Blob;
+        saveAs(blob, `${correction.title.replace(/\s+/g, "_")}_批改记录.docx`);
       }
+      setOpen(false);
+    } catch (error) {
+      console.error("导出错误:", error);
+      alert("导出失败，请重试或选择其他格式");
+    } finally {
+      setLoadingExport(false); // 导出完成后取消加载状态
     }
   };
 
@@ -180,7 +192,7 @@ export default function CorrectionDetailPage() {
         </div>
         <div className="flex flex-wrap gap-x-6 -mb-3 mt-3">
           <div className="ml-auto">
-            <Dialog>
+            <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
                 <Button variant="secondary">导出</Button>
               </DialogTrigger>
@@ -203,18 +215,27 @@ export default function CorrectionDetailPage() {
                       <SelectContent>
                         <SelectItem value="md">.md</SelectItem>
                         <SelectItem value="pdf">.pdf</SelectItem>
-                        <SelectItem value="docx" disabled>.docx</SelectItem>
+                        <SelectItem value="docx">.docx</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
                 <DialogFooter>
                   <DialogClose asChild>
-                    <Button type="button" variant="secondary">
+                    <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
                       取消
                     </Button>
                   </DialogClose>
-                  <Button type="submit" onClick={handleExport}>确认导出</Button>
+                  <Button type="submit" onClick={handleExport} disabled={loadingExport}>
+                    {loadingExport ? (
+                      <>
+                        <Loader2 className="animate-spin" />
+                        请稍候
+                      </>
+                    ) : (
+                      "确认导出"
+                    )}
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>

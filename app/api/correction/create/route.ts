@@ -18,11 +18,6 @@ const deepseek = createOpenAI({
 })
 
 export async function POST(req: NextRequest) {
-  console.debug("debug0");
-  const encoder = new TextEncoder();
-  const stream = new TransformStream();
-  const writer = stream.writable.getWriter();
-  console.debug("debug1");
   try {
     const session = await auth();
     if (!session || !session.user?.email) {
@@ -34,24 +29,31 @@ export async function POST(req: NextRequest) {
     if (!body.originalText || !body.essayText || !body.model || !body.essayType || !body.tone) {
       return NextResponse.json({ success: false, message: "缺少必要参数" }, { status: 400 });
     }
-    console.debug("debug2");
 
     let content = "";
     // 接下来生成初步的 content
     content = `# 1. 题目\n${body.originalText}\n# 2. 我的续写\n${body.essayText}\n`;
 
-    // 发送开始批改的消息
-    await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'progress', message: '开始批改作文...' })}\n\n`));
-    console.debug("debug3");
-    // 调用OpenAI API，生成批改分数结果
-    // const model = deepseek('deepseek-chat');
-    const model = openai('@cf/meta/llama-3.3-70b-instruct-fp8-fast');
-    const { text } = await generateText({
-      model,
-      messages: [
-        {
-          role: 'system',
-          content: `"你是一个高考英语读后续写的阅卷老师，现在有一个高考英语读后续写作文题目和一篇待批改续写作文，需要你对这篇待批改作文进行评分。
+    // 使用 ReadableStream directly
+    const stream = new ReadableStream({
+      async start(controller) {
+        const encoder = new TextEncoder();
+        const enqueue = (data: any) => {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+        };
+
+        // 发送开始批改的消息
+        enqueue({ type: 'progress', message: '开始批改作文...' });
+        try {
+          // 调用OpenAI API，生成批改分数结果
+          // const model = deepseek('deepseek-chat');
+          const model = openai('@cf/meta/llama-3.3-70b-instruct-fp8-fast');
+          const { text } = await generateText({
+            model,
+            messages: [
+              {
+                role: 'system',
+                content: `"你是一个高考英语读后续写的阅卷老师，现在有一个高考英语读后续写作文题目和一篇待批改续写作文，需要你对这篇待批改作文进行评分。
 要求：
 1）请认真阅读作文批改要求和作文题目，对这篇待批改作文进行公正严格的批改和打分；
 2）评分一定要严格，不能轻易给出高分。
@@ -215,112 +217,109 @@ ${body.essayText}
   }
 }
 重要提醒：你的输出仅包含【JSON格式】，不允许出现其他字符或注释。对于json格式中双引号里的内容，请勿再次使用双引号，只允许使用单引号。`,
-        },
-      ],
-      maxTokens: 4096,
-      temperature: 0,
-    });
-    console.log(text);
-    // 解析字符串，首先找到json所在的位置（从第一个`{`开始，到最后一个`}`结束）
-    const start = text.indexOf('{');
-    const end = text.lastIndexOf('}');
-    console.log("debug1");
-    const jsonString = text.substring(start, end + 1);
-    console.log(jsonString);
-    // 解析JSON字符串
-    const json = parse(jsonString);
-    console.log(json);
-    // 计算总分
-    let totalScore = 0;
-    for (const key in json.分项评分) {
-      console.log(key);
-      const section = json.分项评分[key];
-      for (const subKey in section) {
-        console.log(subKey, section[subKey].score);
-        totalScore += section[subKey].score || 2;
-        content += `\n## ${key}\n${subKey}：${section[subKey].reason}\n`;
-      }
-    }
-    console.log(totalScore);
-    // 100 分制转换为 25 分制，并且保留一位小数
-    let score = Number((totalScore / 100 * 25).toFixed(1));
-    // 如果为 0 分
-    if (score === 0) {
-      // 说明应该是AI输出格式出错了，重新用正则匹配一下“?分”，再加和
-      const regex = /\d+分/g;
-      const matches = text.match(regex);
-      if (matches) {
-        const sum = matches.reduce((acc, cur) => acc + parseInt(cur), 0);
-        totalScore = sum;
-      }
-      score = Number((totalScore / 100 * 25).toFixed(1));
-    }
-    // 限制score范围在0到25之间
-    score = Math.max(0, Math.min(25, score));
-    console.log(score);
-    content += `\n## 总分\n${score}分`;
-
-    const fastModel = openai('@cf/meta/llama-3.1-8b-instruct-fast');
-    // 发送批改完成的消息
-    await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'progress', message: '批改完成，正在生成标题...' })}\n\n`));
-
-    // 生成标题
-    let title = "";
-    if (body.title && body.title.length > 0) {
-      title = body.title;
-    } else {
-      // 调用OpenAI API，生成标题
-      const { text: titleResponse } = await generateText({
-        model: fastModel,
-        messages: [
-          {
-            role: 'system',
-            content: `用户将提供给你一道读后续写题，请你分析题目内容，并总结出一个标题，输出时仅包含一行该标题，不允许出现其他字符或注释。`,
-          },
-          {
-            role: 'user',
-            content: `读后续写题：\n${body.originalText}`,
+              },
+            ],
+            maxTokens: 4096,
+            temperature: 0,
+          });
+          // 解析字符串，首先找到json所在的位置（从第一个`{`开始，到最后一个`}`结束）
+          const start = text.indexOf('{');
+          const end = text.lastIndexOf('}');
+          const jsonString = text.substring(start, end + 1);
+          // 解析JSON字符串
+          const json = parse(jsonString);
+          // 计算总分
+          let totalScore = 0;
+          for (const key in json.分项评分) {
+            const section = json.分项评分[key];
+            for (const subKey in section) {
+              totalScore += section[subKey].score || 2;
+              content += `\n## ${key}\n${subKey}：${section[subKey].reason}\n`;
+            }
           }
-        ]
-      });
-      title = titleResponse;
-    }
+          // 100 分制转换为 25 分制，并且保留一位小数
+          let score = Number((totalScore / 100 * 25).toFixed(1));
+          // 如果为 0 分
+          if (score === 0) {
+            // 说明应该是AI输出格式出错了，重新用正则匹配一下“?分”，再加和
+            const regex = /\d+分/g;
+            const matches = text.match(regex);
+            if (matches) {
+              const sum = matches.reduce((acc, cur) => acc + parseInt(cur), 0);
+              totalScore = sum;
+            }
+            score = Number((totalScore / 100 * 25).toFixed(1));
+          }
+          // 限制score范围在0到25之间
+          score = Math.max(0, Math.min(25, score));
+          content += `\n## 总分\n${score}分`;
 
-    // 发送标题生成完成的消息
-    await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'progress', message: '标题生成完成，正在生成图标...' })}\n\n`));
+          const fastModel = openai('@cf/meta/llama-3.1-8b-instruct-fast');
+          // 发送批改完成的消息
+          enqueue({ type: 'progress', message: '批改完成，正在生成标题...' });
 
-    // 生成图标
-    const { text: icon } = await generateText({
-      model: fastModel,
-      messages: [
-        {
-          role: 'system',
-          content: `用户将提供给你一道读后续写题，请你分析题目内容，并输出一个你认为与之相关的emoji字符（只能一个字符，例如📝），并且在输出时不允许出现其他字符或注释。`,
-        },
-        {
-          role: 'user',
-          content: `读后续写题：\n${body.originalText}`,
+          // 生成标题
+          let title = "";
+          if (body.title && body.title.length > 0) {
+            title = body.title;
+          } else {
+            // 调用OpenAI API，生成标题
+            const { text: titleResponse } = await generateText({
+              model: fastModel,
+              messages: [
+                {
+                  role: 'system',
+                  content: `用户将提供给你一道读后续写题，请你分析题目内容，并总结出一个标题，输出时仅包含一行该标题，不允许出现其他字符或注释。`,
+                },
+                {
+                  role: 'user',
+                  content: `读后续写题：\n${body.originalText}`,
+                }
+              ]
+            });
+            title = titleResponse;
+          }
+
+          // 发送标题生成完成的消息
+          enqueue({ type: 'progress', message: '标题生成完成，正在生成图标...' });
+
+          // 生成图标
+          const { text: icon } = await generateText({
+            model: fastModel,
+            messages: [
+              {
+                role: 'system',
+                content: `用户将提供给你一道读后续写题，请你分析题目内容，并输出一个你认为与之相关的emoji字符（只能一个字符，例如📝），并且在输出时不允许出现其他字符或注释。`,
+              },
+              {
+                role: 'user',
+                content: `读后续写题：\n${body.originalText}`,
+              }
+            ]
+          });
+
+          const testData = {
+            title,
+            icon,
+            model: body.model || "gpt-4",
+            content,
+            score,
+            user_email: session.user!.email || "",
+          };
+          const util = new CorrectionUtil();
+          const result = await util.create(testData);
+
+          // 发送完成消息
+          enqueue({ type: 'complete', id: result.id });
+        } catch (e) {
+          enqueue({ type: 'error', message: "批改创建失败", error: String(e) });
+        } finally {
+          controller.close();
         }
-      ]
+      },
     });
-    console.log(icon);
 
-    const testData = {
-      title,
-      icon,
-      model: body.model || "gpt-4",
-      content,
-      score,
-      user_email: session.user.email,
-    };
-    const util = new CorrectionUtil();
-    const result = await util.create(testData);
-    
-    // 发送完成消息
-    await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'complete', id: result.id })}\n\n`));
-    await writer.close();
-    
-    return new Response(stream.readable, {
+    return new Response(stream, {
       headers: {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
@@ -328,16 +327,7 @@ ${body.essayText}
       },
     });
   } catch (e) {
-    if (writer) {
-      await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'error', message: "批改创建失败", error: String(e) })}\n\n`));
-      await writer.close();
-    }
-    return new Response(stream.readable, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-      },
-    });
+    console.error("Overall error:", e);
+    return NextResponse.json({ success: false, message: "服务器错误", error: String(e) }, { status: 500 });
   }
 }

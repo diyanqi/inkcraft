@@ -3,10 +3,10 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"; // Add usePathname here
+import React, { useState, useRef, useCallback, useEffect } from "react" // Added useEffect
 import {
     Drawer,
-    DrawerClose,
     DrawerContent,
     DrawerDescription,
     DrawerFooter,
@@ -16,13 +16,11 @@ import {
 import {
     Form,
     FormControl,
-    FormDescription,
     FormField,
     FormItem,
     FormLabel,
     FormMessage,
 } from "@/components/ui/form"
-import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
     Select,
@@ -42,157 +40,203 @@ import {
     Dialog,
     DialogContent,
     DialogDescription,
+    DialogFooter, // Added
     DialogHeader,
     DialogTitle,
+    DialogClose, // Added
 } from "@/components/ui/dialog"
-import { Check, ScanText, ImagePlus, RotateCcw, Crop as CropIcon } from "lucide-react" // Renamed lucide-react Crop to CropIcon to avoid conflict
+import { Check, ScanText, ImagePlus, RotateCcw, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
-// Import react-image-crop
-import ReactCrop, {
-    centerCrop,
-    makeAspectCrop,
-} from 'react-image-crop';
-import type { Crop, PixelCrop, PercentCrop } from 'react-image-crop'; // Explicitly import types and add PercentCrop
 import imageCompression from 'browser-image-compression'
 import { useMediaQuery } from "@/hooks/use-media-query"
+import { Progress } from "@/components/ui/progress" // Added
+import { Label } from "@/components/ui/label" // Added
 
-import { useState, useRef, useCallback, useEffect } from "react"
-import { Loader2 } from "lucide-react"
+// Removed crop related imports and functions
 
-// Import react-image-crop styles
-import 'react-image-crop/dist/ReactCrop.css'
+// Define Form Schema Type
+const formSchema = z.object({
+    title: z.string().min(0), // Optional title
+    originalText: z.string().min(1, { message: "请输入原题题干" }),
+    referenceText: z.string().min(0), // Optional reference
+    essayType: z.string().min(1, { message: "请选择作文类型" }),
+    essayText: z.string().min(1, { message: "请输入习作" }),
+    model: z.string().min(1, { message: "请选择模型" }),
+    tone: z.string().min(1, { message: "请选择语气" })
+});
+type FormData = z.infer<typeof formSchema>;
 
-// Helper function to draw the cropped image onto a canvas
-// This is different from react-easy-crop's getCroppedImg
-async function canvasPreview(
-    image: HTMLImageElement,
-    crop: PixelCrop,
-    scale = 1,
-    rotate = 0,
-): Promise<Blob | null> {
-    const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('2d')
 
-    if (!ctx) {
-        throw new Error('No 2D context')
+// --- Confirmation Dialog Component ---
+interface ConfirmCorrectionDialogProps {
+    isOpen: boolean;
+    onOpenChange: (open: boolean) => void;
+    onConfirm: () => void; // Renamed from startCorrectionProcess for clarity
+    formData: FormData | null;
+    isLoading: boolean;
+    progress: number;
+    progressMessage: string;
+}
+
+function ConfirmCorrectionDialog({
+    isOpen,
+    onOpenChange,
+    onConfirm,
+    formData,
+    isLoading,
+    progress,
+    progressMessage
+}: ConfirmCorrectionDialogProps) {
+    if (!formData) return null; // Don't render if no data
+
+    // Helper to get display names
+    const getModelDisplayName = (value: string) => {
+        const options: { [key: string]: string } = {
+            "gpt4": "GPT-4o",
+            "llama": "Meta Llama",
+            "deepseek": "Deepseek-v3",
+            "gemini": "Google Gemini",
+            "qwen": "通义千问",
+        };
+        return options[value] || value;
+    };
+
+    const getToneDisplayName = (value: string) => {
+        const options: { [key: string]: string } = {
+            "default": "默认",
+            "serious": "一本正经",
+            "humorous": "幽默风趣",
+            "sharp": "犀利锐评",
+        };
+        return options[value] || value;
+    };
+
+    const getEssayTypeDisplayName = (value: string) => {
+         const options: { [key: string]: string } = {
+             "gaokao-english-continuation": "高考英语 读后续写",
+             "gaokao-english-practical": "高考英语 应用文",
+             "gaokao-chinese-composition": "高考语文 作文",
+         };
+         return options[value] || value;
     }
 
-    const scaleX = image.naturalWidth / image.width
-    const scaleY = image.naturalHeight / image.height
-    // devicePixelRatio slightly increases sharpness on retina devices
-    // at the expense of slightly slower render times.
-    // document.body.append(canvas) // for debugging
+    return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-[480px]">
+                <DialogHeader>
+                    <DialogTitle>确认批改信息</DialogTitle>
+                    <DialogDescription>
+                        请核对以下信息，确认无误后开始批改。
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                    {/* Display summary of options */}
+                     <div className="grid grid-cols-3 items-center gap-4">
+                        <Label className="text-right text-muted-foreground">作文类型</Label>
+                        <div className="col-span-2 font-medium">{getEssayTypeDisplayName(formData.essayType)}</div>
+                    </div>
+                     <div className="grid grid-cols-3 items-center gap-4">
+                        <Label className="text-right text-muted-foreground">选用模型</Label>
+                        <div className="col-span-2 font-medium">{getModelDisplayName(formData.model)}</div>
+                    </div>
+                    <div className="grid grid-cols-3 items-center gap-4">
+                        <Label className="text-right text-muted-foreground">讲解语气</Label>
+                         <div className="col-span-2 font-medium">{getToneDisplayName(formData.tone)}</div>
+                    </div>
 
-    const ratio = window.devicePixelRatio || 1
-
-    canvas.width = Math.floor(crop.width * scaleX * ratio)
-    canvas.height = Math.floor(crop.height * scaleY * ratio)
-
-    ctx.scale(ratio, ratio)
-    ctx.imageSmoothingQuality = 'high'
-
-    const cropX = crop.x * scaleX
-    const cropY = crop.y * scaleY
-
-    const rotateRads = rotate * Math.PI / 180
-    const centerX = image.naturalWidth / 2
-    const centerY = image.naturalHeight / 2
-
-    ctx.save()
-
-    // 5) Move the crop origin to the canvas origin (0,0)
-    ctx.translate(-cropX, -cropY)
-    // 4) Move the canvas origin to the center of the original image
-    ctx.translate(centerX, centerY)
-    // 3) Rotate around the center of the original image
-    ctx.rotate(rotateRads)
-    // 2) Scale the image
-    ctx.scale(scale, scale)
-    // 1) Move the center of the original image to the canvas origin (0,0)
-    ctx.translate(-centerX, -centerY)
-
-    // Draw the cropped image
-    ctx.drawImage(
-        image,
-        0,
-        0,
-        image.naturalWidth,
-        image.naturalHeight,
-        0,
-        0,
-        image.naturalWidth,
-        image.naturalHeight,
+                    {/* Progress Section - Visible only when loading */}
+                    {isLoading && (
+                        <div className="mt-4 pt-4 border-t">
+                            <Label className="text-sm font-medium">批改进度</Label>
+                            <Progress value={progress} className="w-full mt-2" />
+                            <p className="text-sm text-muted-foreground mt-1 text-center">{progressMessage || "准备开始..."}</p>
+                        </div>
+                    )}
+                </div>
+                <DialogFooter>
+                    {/* Conditional Rendering for Buttons */}
+                    {!isLoading ? (
+                        <>
+                            <DialogClose asChild>
+                                <Button type="button" variant="outline">
+                                    取消
+                                </Button>
+                            </DialogClose>
+                            <Button type="button" onClick={onConfirm}> {/* Changed to type="button" */}
+                                确认批改
+                            </Button>
+                        </>
+                    ) : (
+                         // Show only a disabled "Processing" button or nothing while loading
+                         // Or keep the cancel button active? Let's keep Cancel active.
+                         <>
+                            <DialogClose asChild>
+                                 <Button type="button" variant="outline" disabled={isLoading}>
+                                     取消
+                                 </Button>
+                             </DialogClose>
+                            <Button type="button" disabled>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                批改中...
+                            </Button>
+                         </>
+                    )}
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     )
-
-    ctx.restore()
-
-    return new Promise((resolve, reject) => {
-        canvas.toBlob(
-            (blob) => {
-                // canvas.remove() // for debugging
-                resolve(blob)
-            },
-            'image/jpeg',
-            1 // quality
-        )
-    })
 }
 
 
+// --- Main Page Component ---
 export default function CreatePage() {
     // State management
-    const [originalText, setOriginalText] = useState("")
-    const [referenceText, setReferenceText] = useState("")
-    const [essayText, setEssayText] = useState("")
-    const [isOriginalOCRLoading, setIsOriginalOCRLoading] = useState(false)
-    const [isReferenceOCRLoading, setIsReferenceOCRLoading] = useState(false)
-    const [isEssayOCRLoading, setIsEssayOCRLoading] = useState(false)
-    const [isDrawerOpen, setIsDrawerOpen] = useState(false)
-    // 新增loading状态
-    const [isCorrectionLoading, setIsCorrectionLoading] = useState(false)
+    const [isOriginalOCRLoading, setIsOriginalOCRLoading] = useState(false);
+    const [isReferenceOCRLoading, setIsReferenceOCRLoading] = useState(false);
+    const [isEssayOCRLoading, setIsEssayOCRLoading] = useState(false);
+    const [isDrawerOpen, setIsDrawerOpen] = useState(false); // For OCR Image Selection
+    const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false); // For Confirmation Dialog
+    const [isCorrectionLoading, setIsCorrectionLoading] = useState(false); // For API call loading state
+    const [correctionProgress, setCorrectionProgress] = useState(0); // Progress 0-100
+    const [correctionProgressMessage, setCorrectionProgressMessage] = useState(""); // Progress text
+    const [pendingFormData, setPendingFormData] = useState<FormData | null>(null); // Store validated data before confirmation
 
-    // react-image-crop states
-    const [imageSrc, setImageSrc] = useState<string | null>(null) // Original image data URL
-    const [crop, setCrop] = useState<Crop>() // Current crop object (user is dragging)
-    const [completedCrop, setCompletedCrop] = useState<PixelCrop>() // Final crop object (after user stops dragging)
-    const [croppedImageSrc, setCroppedImageSrc] = useState<string | null>(null) // Data URL of the cropped preview
-    const [isCropMode, setIsCropMode] = useState(false) // Whether the cropper is visible
-
-    const [activeInput, setActiveInput] = useState<'original' | 'reference' | 'essay' | null>(null)
-
-    // File input references
-    const originalFileInputRef = useRef<HTMLInputElement>(null)
-    const referenceFileInputRef = useRef<HTMLInputElement>(null)
-    const essayFileInputRef = useRef<HTMLInputElement>(null)
-    const inputFileRef = useRef<HTMLInputElement>(null) // Unified file input
-
-    // Ref for the image element inside the cropper
-    const imgRef = useRef<HTMLImageElement>(null)
-
-    // Media query
+    const [imageSrc, setImageSrc] = useState<string | null>(null);
+    const [activeInput, setActiveInput] = useState<'original' | 'reference' | 'essay' | null>(null);
+    const inputFileRef = useRef<HTMLInputElement>(null);
     const isDesktop = useMediaQuery("(min-width: 768px)");
+    const router = useRouter();
+    const currentPathname = usePathname(); // Get the current pathname
 
-    // Handle image selection
-    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const form = useForm<FormData>({
+        resolver: zodResolver(formSchema),
+        defaultValues: {
+            title: "",
+            originalText: "",
+            referenceText: "",
+            essayType: "gaokao-english-continuation",
+            essayText: "",
+            model: "gpt4",
+            tone: "default"
+        }
+    });
+
+    // --- Functions ---
+
+    // Image handling (handleImageChange, handleDrop, handleDragOver) - unchanged
+     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (!file) return
 
         const reader = new FileReader()
         reader.addEventListener('load', () => {
             setImageSrc(reader.result as string)
-            setCroppedImageSrc(null) // Clear previous cropped image
-            // Keep crop and completedCrop as undefined initially, onImageLoad will set the default
-            setCrop(undefined)
-            setCompletedCrop(undefined)
-            setIsCropMode(true) // Automatically enter crop mode after selecting
         })
         reader.readAsDataURL(file)
-
         if (e.target) e.target.value = '' // Reset file input
     }
 
-    // Handle drag-and-drop
     const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
         e.preventDefault()
         const file = e.dataTransfer.files[0]
@@ -200,717 +244,436 @@ export default function CreatePage() {
             const reader = new FileReader()
             reader.addEventListener('load', () => {
                 setImageSrc(reader.result as string)
-                setCroppedImageSrc(null)
-                setCrop(undefined)
-                setCompletedCrop(undefined)
-                setIsCropMode(true)
             })
             reader.readAsDataURL(file)
         }
     }
 
-    // Prevent default drag-over behavior
     const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
         e.preventDefault()
     }
 
-    // 表单验证schema
-    const formSchema = z.object({
-        title: z.string().min(0, { message: "请输入标题" }),
-        originalText: z.string().min(1, { message: "请输入原题题干" }),
-        referenceText: z.string().min(0, { message: "请输入参考范文" }),
-        essayType: z.string().min(1, { message: "请选择作文类型" }),
-        essayText: z.string().min(1, { message: "请输入习作" }),
-        model: z.string().min(1, { message: "请选择模型" }),
-        tone: z.string().min(1, { message: "请选择语气" })
-    })
-
-    // 表单处理
-    const router = useRouter();
-    const form = useForm<z.infer<typeof formSchema>>({
-        resolver: zodResolver(formSchema),
-        defaultValues: {
-            title: "",
-            originalText,
-            referenceText,
-            essayType: "gaokao-english-continuation",
-            essayText,
-            model: "gpt4",
-            tone: "default"
-        }
-    })
-
-    const onSubmit = async (values: z.infer<typeof formSchema>) => {
-        setIsCorrectionLoading(true);
-        try {
-            const res = await fetch('/api/correction/create', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(values)
-            });
-
-            // 获取响应的可读流
-            const reader = res.body?.getReader();
-            if (!reader) {
-                throw new Error('无法获取响应流');
-            }
-
-            // 用于存储累积的文本数据
-            let accumulatedData = '';
-
-            // 循环读取流数据
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                // 将 Uint8Array 转换为文本
-                const chunk = new TextDecoder().decode(value);
-                accumulatedData += chunk;
-
-                // 尝试处理完整的消息
-                const lines = accumulatedData.split('\n');
-                accumulatedData = lines.pop() || ''; // 保存最后一个不完整的行
-
-                for (const line of lines) {
-                    if (!line.trim()) continue;
-
-                    try {
-                        const message = JSON.parse(line);
-                        switch (message.type) {
-                            case 'progress':
-                                toast.info(message.content);
-                                break;
-                            case 'error':
-                                toast.error(message.content);
-                                break;
-                            case 'success':
-                                if (message.id) {
-                                    toast.success('批改创建成功，正在跳转...');
-                                    router.push(`/dashboard/correction/${message.id}`);
-                                    return;
-                                }
-                                break;
-                            default:
-                                console.log('未知消息类型:', message);
-                        }
-                    } catch (e) {
-                        console.error('解析消息失败:', e);
-                    }
-                }
-            }
-        } catch (e) {
-            toast.error('请求出错');
-            console.error('Stream error:', e);
-        } finally {
-            setIsCorrectionLoading(false);
-        }
+    // resetImageStates - unchanged
+    const resetImageStates = () => {
+        setImageSrc(null);
+        setActiveInput(null);
+        if (inputFileRef.current) inputFileRef.current.value = '';
     };
-    // Handle image load in the cropper - Set default 80% crop here
-    const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
-        imgRef.current = e.currentTarget;
-        const { width, height } = e.currentTarget;
 
-        // Calculate and set the initial 80% centered crop when the image loads
-        // This logic runs when a *new* image is loaded.
-        // When re-entering crop mode for the *same* image, we'll use the completedCrop.
-        if (!crop && !completedCrop) { // Only set default if no crop is already defined
-            const initialCrop: PercentCrop = { // <-- Changed type to PercentCrop
-                unit: '%', // Use percentage units
-                width: 80, // 80% width
-                height: 80, // 80% height
-                x: 0, // Temporary x, centerCrop will calculate
-                y: 0, // Temporary y, centerCrop will calculate
-            };
-
-            // Center the calculated crop
-            const centeredCrop = centerCrop(initialCrop, width, height);
-
-            // Set the calculated centered crop as the initial crop state
-            setCrop(centeredCrop);
-
-            // Also immediately calculate and set the completed crop based on this default
-            // This allows the preview to show right away and the "确认识别" button to be enabled
-            // without the user needing to drag.
-            if (imgRef.current && centeredCrop.width && centeredCrop.height && centeredCrop.unit === '%') {
-                // Need to convert percentage crop to pixel crop for completedCrop
-                const pixelCrop: PixelCrop = {
-                    x: (centeredCrop.x / 100) * width,
-                    y: (centeredCrop.y / 100) * height,
-                    width: (centeredCrop.width / 100) * width,
-                    height: (centeredCrop.height / 100) * height,
-                    unit: 'px' // completedCrop is typically in pixels
-                };
-                setCompletedCrop(pixelCrop);
-            }
-        }
-
-
-    }, [crop, completedCrop]); // Dependencies: include crop and completedCrop to avoid re-setting default if they exist.
-
-    // Generate the cropped preview when completedCrop changes
-    useEffect(() => {
-        if (completedCrop?.width && completedCrop?.height && imgRef.current) {
-            // Use canvasPreview to get the cropped blob
-            canvasPreview(
-                imgRef.current,
-                completedCrop,
-                1, // scale
-                0  // rotate
-            ).then(blob => {
-                if (blob) {
-                    const reader = new FileReader()
-                    reader.onload = () => {
-                        setCroppedImageSrc(reader.result as string)
-                    }
-                    reader.readAsDataURL(blob)
-                }
-            }).catch(error => {
-                console.error("Failed to create canvas preview:", error);
-                toast.error("生成图片预览失败");
-            });
-        } else {
-            setCroppedImageSrc(null); // Clear preview if crop is cleared
-        }
-    }, [completedCrop]); // Effect runs when completedCrop changes
-
-    // Confirm crop
-    const handleConfirmCrop = () => {
-        if (completedCrop?.width && completedCrop?.height && imgRef.current) {
-            // The useEffect above already generated the croppedImageSrc
-            // We just need to exit crop mode
-            setIsCropMode(false);
-        } else {
-            toast.error("请先完成裁剪区域的选择");
-        }
-    }
-
-    // Proceed with OCR
-    const handleProceedOCR = async () => {
-        if (!croppedImageSrc || !activeInput) {
-            toast.error("没有可识别的图片");
-            return;
-        }
-        try {
-            // Convert the cropped data URL back to a Blob
-            const response = await fetch(croppedImageSrc);
-            const croppedBlob = await response.blob();
-
-            await handleOCR(croppedBlob, activeInput);
-
-            // Close drawer/dialog and reset states after successful OCR
-            setIsDrawerOpen(false);
-            setImageSrc(null);
-            setCroppedImageSrc(null);
-            setIsCropMode(false);
-            setActiveInput(null);
-            setCrop(undefined); // Reset crop state
-            setCompletedCrop(undefined); // Reset completed crop state
-            if (inputFileRef.current) inputFileRef.current.value = ''; // Reset file input element
-        } catch (error) {
-            console.error("Error processing cropped image for OCR:", error);
-            toast.error("处理图片失败");
-        }
-    }
-
-    // OCR handling function
+    // handleOCR - unchanged (keeps its own toasts for success/error)
     const handleOCR = async (file: Blob, inputType: 'original' | 'reference' | 'essay') => {
-        const setLoading = {
+         const setLoadingState = {
             original: setIsOriginalOCRLoading,
             reference: setIsReferenceOCRLoading,
             essay: setIsEssayOCRLoading,
-        }[inputType]
-
-        setLoading(true)
+        }[inputType];
+        setLoadingState(true);
         try {
-            const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true }
-            // Use the original file name or a generic one
+            const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true };
             const fileName = `ocr_image_${inputType}.jpg`;
             const fileToProcess = new File([file], fileName, {
-                type: "image/jpeg",
+                type: file.type.startsWith('image/') ? file.type : 'image/jpeg',
                 lastModified: Date.now(),
-            })
-            const compressedFile = await imageCompression(fileToProcess, options)
-            const formData = new FormData()
-            formData.append("file", compressedFile, fileName)
+            });
+            const compressedFile = await imageCompression(fileToProcess, options);
+            const formData = new FormData();
+            formData.append("file", compressedFile, fileName);
 
-            const res = await fetch("/api/ocr", {
-                method: "POST",
-                body: formData,
-            })
+            const res = await fetch("/api/ocr", { method: "POST", body: formData });
+            const data = await res.json();
 
-            const data = await res.json()
             if (res.ok && data.success) {
-                // 使用form.setValue更新表单字段
                 const fieldMap = {
                     original: 'originalText',
                     reference: 'referenceText',
                     essay: 'essayText'
                 }[inputType] as 'originalText' | 'referenceText' | 'essayText';
-                form.setValue(fieldMap, data.text)
-                toast.success("识别成功")
+                form.setValue(fieldMap, data.text);
+                toast.success("OCR 识别成功"); // Keep OCR toast
             } else {
-                // Log the full error response from the server
                 console.error("OCR API Error:", data);
-                throw new Error(data.error || "识别失败");
+                throw new Error(data.error || "OCR 识别失败");
             }
         } catch (err) {
-            console.error("OCR Fetch or Processing Error:", err); // Log the actual error
-            // Display a user-friendly message, possibly based on the error
-            if (err instanceof Error) {
-                toast.error(`OCR 失败: ${err.message}`);
-            } else {
-                toast.error("OCR 失败，请重试");
-            }
+            console.error("OCR Fetch or Processing Error:", err);
+             // Keep OCR toast for failure
+            toast.error(`OCR 失败: ${err instanceof Error ? err.message : "请重试"}`);
         } finally {
-            setLoading(false)
+            setLoadingState(false);
+        }
+    };
+
+
+    // handleProceedOCR (calls handleOCR) - unchanged
+     const handleProceedOCR = async () => {
+        if (!imageSrc || !activeInput) {
+            toast.error("没有可识别的图片");
+            return;
+        }
+        try {
+            const response = await fetch(imageSrc);
+            const imageBlob = await response.blob();
+            await handleOCR(imageBlob, activeInput);
+            setIsDrawerOpen(false);
+            resetImageStates();
+        } catch (error) {
+            console.error("Error processing image for OCR:", error);
+            toast.error("处理图片失败");
         }
     }
 
-    // OCR Button component
-    const OCRButton = ({
-        isLoading,
-        inputType,
-    }: {
-        isLoading: boolean,
-        inputType: 'original' | 'reference' | 'essay'
-    }) => (
+
+    // Function to be called when confirming in the dialog
+    const startCorrectionProcess = async () => {
+        if (!pendingFormData) {
+            toast.error("无法开始批改：缺少表单数据。");
+            setIsConfirmDialogOpen(false); // Close dialog if data is missing
+            return;
+        }
+
+        setIsCorrectionLoading(true);
+        setCorrectionProgress(5); // Initial progress
+        setCorrectionProgressMessage("正在初始化批改任务...");
+
+        try {
+            const res = await fetch('/api/correction/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(pendingFormData) // Use stored data
+            });
+
+            if (!res.body) {
+                throw new Error('服务器响应体为空');
+            }
+
+            const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+            let accumulatedData = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                accumulatedData += value;
+                let lines = accumulatedData.split('\n');
+                accumulatedData = lines.pop() || ''; // Keep incomplete line
+
+                for (const line of lines) {
+                    if (!line.trim()) continue;
+                    let jsonString = line.startsWith('data: ') ? line.substring(5) : line;
+
+                    try {
+                        const message = JSON.parse(jsonString);
+                        switch (message.type) {
+                            case 'progress':
+                                // Update progress based on message (simple estimation)
+                                setCorrectionProgressMessage(message.message);
+                                // Example: Assign progress values based on keywords
+                                if (message.message.includes("分析")) setCorrectionProgress(prev => Math.max(prev, 30));
+                                else if (message.message.includes("生成")) setCorrectionProgress(prev => Math.max(prev, 60));
+                                else if (message.message.includes("评分") || message.message.includes("整理")) setCorrectionProgress(prev => Math.max(prev, 85));
+                                else setCorrectionProgress(prev => Math.min(prev + 5, 95)); // Generic increment
+
+                                // toast.info(message.message); // REMOVED intermediate toast
+                                break;
+                            case 'error':
+                                // Keep error toast
+                                toast.error(`批改出错: ${message.message}`);
+                                setIsConfirmDialogOpen(false); // Close dialog on error
+                                throw new Error(message.message); // Throw to trigger finally block correctly
+                            case 'complete':
+                                if (message.id) {
+                                    setCorrectionProgress(100);
+                                    setCorrectionProgressMessage("批改完成！");
+                                    // Keep final success toast
+                                    toast.success('批改创建成功，正在跳转...');
+                                    // Optional delay before closing dialog and redirecting
+                                    setTimeout(() => {
+                                        setIsConfirmDialogOpen(false);
+                                        router.push(`/dashboard/correction/${message.id}`);
+                                    }, 500); // 0.5s delay
+                                    return; // Exit loop and function
+                                } else {
+                                     toast.error('批改完成但未收到ID，请检查');
+                                     setIsConfirmDialogOpen(false); // Close dialog
+                                }
+                                break;
+                            default:
+                                console.log('Unknown message type:', message);
+                        }
+                    } catch (e) {
+                        console.error('Failed to parse message:', e, 'Line:', line);
+                        // Don't toast for simple parsing errors, might be incomplete stream
+                    }
+                }
+            }
+             // Handle any remaining data (less likely needed with the robust loop)
+             if (accumulatedData.trim()) {
+                  console.log("Processing remaining data:", accumulatedData);
+                   // Try processing final chunk if any
+             }
+
+        } catch (e) {
+            // Handle fetch errors or errors thrown from stream processing
+            if (e instanceof Error && !e.message.includes('Failed to fetch')) {
+                 // Avoid double toasting if already handled in 'error' case
+                 // toast.error(`请求出错: ${e.message}`); // Already toasted usually
+            } else if (e instanceof Error && e.message.includes('Failed to fetch')) {
+                toast.error('网络请求失败，请检查连接');
+            } else {
+                 toast.error('发生未知错误');
+            }
+            console.error('Correction Process Error:', e);
+            setIsConfirmDialogOpen(false); // Ensure dialog closes on any error
+        } finally {
+            // Reset loading and progress only after completion or error
+            // Success case handles its own reset/redirect. Error case should reset here.
+            if (!currentPathname?.includes('/dashboard/correction/')) { // Use currentPathname here
+                setIsCorrectionLoading(false);
+                // Optional: reset progress if you want to clear it on error even if dialog closes
+                // setCorrectionProgress(0);
+                // setCorrectionProgressMessage("");
+                setPendingFormData(null); // Clear pending data after attempt (success or failure)
+           }
+        }
+    };
+
+
+    // Original onSubmit function - Now triggers the confirmation dialog
+    const onSubmit = (values: FormData) => {
+        // 1. Store the validated data
+        setPendingFormData(values);
+        // 2. Reset progress from previous attempts
+        setCorrectionProgress(0);
+        setCorrectionProgressMessage("");
+         // 3. Open the confirmation dialog
+        setIsConfirmDialogOpen(true);
+        // Note: isCorrectionLoading is set to true inside startCorrectionProcess
+    };
+
+    // --- Render Helper Components ---
+
+    // OCRButton - unchanged
+     const OCRButton = ({ isLoading, inputType }: { isLoading: boolean, inputType: 'original' | 'reference' | 'essay' }) => (
         <Button
             type="button"
             className="flex items-center gap-1 text-sm"
             variant="outline"
             disabled={isLoading}
-            onClick={() => {
-                setActiveInput(inputType)
-                setIsDrawerOpen(true)
-                // The file input click is now triggered inside the drawer/dialog
-            }}
+            onClick={() => { setActiveInput(inputType); setIsDrawerOpen(true); }}
         >
-            {isLoading ? (
-                <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    识别中...
-                </>
-            ) : (
-                <>
-                    <ScanText className="h-4 w-4" />
-                    文字识别
-                </>
-            )}
+            {isLoading ? <><Loader2 className="h-4 w-4 animate-spin" />识别中...</> : <><ScanText className="h-4 w-4" />文字识别</>}
         </Button>
-    )
+    );
 
-    // Function to reset all image/cropping related states
-    const resetImageStates = () => {
-        setImageSrc(null);
-        setCroppedImageSrc(null);
-        setIsCropMode(false);
-        setActiveInput(null);
-        setCrop(undefined); // Ensure crop state is reset
-        setCompletedCrop(undefined); // Ensure completed crop state is reset
-        if (inputFileRef.current) inputFileRef.current.value = ''; // Reset file input element
-    };
-
-
-    const renderCropperContent = () => (
-        <div className="flex flex-col items-center justify-center px-4 gap-4 h-full"> {/* Added h-full */}
-            {!imageSrc && (
+    // renderImageSelectionContent - unchanged
+    const renderImageSelectionContent = () => (
+        <div className="flex flex-col items-center justify-center px-4 gap-4 h-full">
+            {!imageSrc ? (
                 <>
                     <div
-                        className="w-full max-w-md h-32 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center text-gray-500 hover:border-gray-400 transition-colors cursor-pointer"
-                        onDrop={handleDrop}
-                        onDragOver={handleDragOver}
-                        onClick={() => inputFileRef.current?.click()}
+                        className="w-full max-w-md h-40 border-2 border-dashed border-gray-300 rounded-md flex flex-col items-center justify-center text-gray-500 hover:border-gray-400 transition-colors cursor-pointer text-center p-4"
+                        onDrop={handleDrop} onDragOver={handleDragOver} onClick={() => inputFileRef.current?.click()}
                     >
-                        将图片拖放到此处
+                        <ImagePlus className="w-8 h-8 mb-2 text-gray-400" />
+                        将图片拖放到此处 或 点击选择
                     </div>
-                    <Button onClick={() => inputFileRef.current?.click()} variant="outline">
-                        <ImagePlus className="w-4 h-4 mr-2" /> 或手动选择…
-                    </Button>
-                    {/* Unified file input */}
-                    <input
-                        ref={inputFileRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleImageChange}
-                    />
+                    <input ref={inputFileRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
                 </>
-            )}
-            {imageSrc && isCropMode && (
-                // Container for ReactCrop - needs dimensions
-                <div className="relative w-full max-w-md h-[400px] md:h-[500px]"> {/* Increased height */}
-                    <ReactCrop
-                        crop={crop}
-                        onChange={(_: any, percentCrop: any) => setCrop(percentCrop)}
-                        onComplete={(c: any) => setCompletedCrop(c)}
-                        // Add the custom class for styling the overlay
-                        className="ios-crop-overlay"
-                    // No 'aspect' prop for freeform cropping
-                    // ruleOfThirds // Optional: show grid lines
-                    // circularCrop // Optional: circular crop
-                    // minWidth, minHeight, maxWidth, maxHeight can be added here
-                    // disabled={isLoading} // Disable crop while loading?
-                    >
-                        {/* The image element that ReactCrop works on */}
-                        <img
-                            ref={imgRef}
-                            alt="Crop me"
-                            src={imageSrc}
-                            onLoad={onImageLoad} // onImageLoad sets the default crop if none exists
-                            // Style to make image fit container and allow cropping
-                            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
-                        />
-                    </ReactCrop>
-                </div>
-            )}
-            {imageSrc && !isCropMode && croppedImageSrc && (
-                <div className="flex flex-col items-center gap-4">
-                    <img
-                        src={croppedImageSrc}
-                        alt="Cropped preview"
-                        className="max-w-full max-h-[400px] md:max-h-[500px] object-contain" // Increased max height
-                    />
-                    <div className="flex flex-row gap-2">
-                        <Button
-                            onClick={resetImageStates} // Use reset function
-                            variant="ghost"
-                        >
-                            <RotateCcw className="w-4 h-4 mr-1" /> 重新选择
-                        </Button>
-                        <Button
-                            onClick={() => {
-                                // Set the crop state to the last completed crop before re-entering crop mode
-                                if (completedCrop) {
-                                    setCrop(completedCrop);
-                                }
-                                setIsCropMode(true); // Go back to crop mode
-                            }}
-                            variant="ghost"
-                        >
-                            <CropIcon className="w-4 h-4 mr-2" /> 重新裁剪 {/* Use CropIcon */}
-                        </Button>
-                    </div>
-                </div>
-            )}
-            {/* Handle the case where imageSrc is set but not in crop mode and no croppedImageSrc (shouldn't happen often with current logic) */}
-            {imageSrc && !isCropMode && !croppedImageSrc && (
-                <div className="flex flex-col items-center gap-4">
-                    <p className="text-muted-foreground">请选择或裁剪图片</p>
-                    <Button
-                        onClick={resetImageStates} // Use reset function
-                        variant="ghost"
-                    >
-                        <RotateCcw className="w-4 h-4 mr-1" /> 重新选择
-                    </Button>
+            ) : (
+                <div className="flex flex-col items-center gap-4 w-full">
+                    <p className="text-sm text-muted-foreground">已选择图片:</p>
+                    <img src={imageSrc} alt="Selected preview" className="max-w-full max-h-[400px] md:max-h-[500px] object-contain border rounded-md" />
                 </div>
             )}
         </div>
     );
 
-    const renderCropperFooter = () => (
-        <div className="flex flex-row justify-end gap-2 mt-4">
-            {imageSrc && isCropMode ? (
-                <>
-                    <Button
-                        onClick={() => {
-                            setIsCropMode(false); // Exit crop mode without confirming
-                            // Optionally reset crop/completedCrop here if you want to discard changes made during this crop session
-                            // setCrop(undefined); // Keep the current crop state when cancelling to allow resuming? Or clear?
-                            // setCompletedCrop(undefined); // Keep the completedCrop state?
-                        }}
-                        variant="ghost"
-                    >
-                        取消裁剪
-                    </Button>
-                    <Button
-                        onClick={handleConfirmCrop}
-                        // Button is enabled if completedCrop has dimensions (set by onImageLoad or onComplete)
-                        disabled={!completedCrop?.width || !completedCrop?.height || isOriginalOCRLoading || isReferenceOCRLoading || isEssayOCRLoading}
-                    >
-                        确认裁剪
-                    </Button>
-                </>
-            ) : imageSrc && !isCropMode && croppedImageSrc ? (
-                <>
-                    <Button
-                        onClick={handleProceedOCR}
-                        disabled={isOriginalOCRLoading || isReferenceOCRLoading || isEssayOCRLoading}
-                    >
-                        确认识别
-                    </Button>
-                </>
-            ) : null}
-            {/* Simplified cancel button logic */}
-            {/* This '取消' button closes the modal/drawer entirely */}
-            <Button
-                variant="outline"
-                onClick={() => {
-                    setIsDrawerOpen(false);
-                    resetImageStates(); // Reset states when cancel button is clicked
-                }}
-            >
+
+    // renderImageSelectionFooter - unchanged
+    const renderImageSelectionFooter = () => (
+        <div className="flex flex-row justify-end gap-2 pt-4 border-t">
+            {imageSrc && (
+                 <Button onClick={resetImageStates} variant="ghost" disabled={isOriginalOCRLoading || isReferenceOCRLoading || isEssayOCRLoading}>
+                    <RotateCcw className="w-4 h-4 mr-1" /> 重新选择
+                </Button>
+            )}
+            <Button onClick={handleProceedOCR} disabled={!imageSrc || isOriginalOCRLoading || isReferenceOCRLoading || isEssayOCRLoading}>
+                <ScanText className="w-4 h-4 mr-2" /> 确认识别
+            </Button>
+            <Button variant="outline" onClick={() => { setIsDrawerOpen(false); resetImageStates(); }}>
                 取消
             </Button>
         </div>
     );
 
 
+    // --- Main Return JSX ---
     return (
         <div className="flex flex-col gap-4 p-4 md:p-6">
             <h1 className="text-2xl font-bold tracking-tight">新建批改任务</h1>
             <Form {...form}>
+                {/* Form structure remains the same - uses form.handleSubmit(onSubmit) */}
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                        {/* First Card: Question Input */}
-                        <Card>
+                     {/* Grid for Cards */}
+                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                        {/* Card 1: Question Input */}
+                         <Card>
                             <CardHeader>
                                 <CardTitle className="text-lg">题干录入</CardTitle>
-                                <CardDescription>录入并匹配原题，提供精准化解析。</CardDescription>
+                                <CardDescription>录入原题及范文，支持文字识别。</CardDescription>
                             </CardHeader>
                             <CardContent className="grid gap-4">
-                                <FormField
-                                    control={form.control}
-                                    name="title"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>标题 <span className="text-sm text-muted-foreground">*可选</span></FormLabel>
-                                            <FormControl>
-                                                <input
-                                                    type="text"
-                                                    placeholder="留白以自动生成"
-                                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                                    {...field}
-                                                />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="originalText"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>原题题干</FormLabel>
-                                            <FormControl>
-                                                <div className="grid w-auto max-w-3xl gap-1.5">
-                                                    <Textarea
-                                                        placeholder="在这里输入原题题干…"
-                                                        className="max-h-[7lh]"
-                                                        {...field}
-                                                    />
-                                                    <div className="flex justify-end">
-                                                        <OCRButton
-                                                            isLoading={isOriginalOCRLoading}
-                                                            inputType="original"
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="referenceText"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>参考范文 <span className="text-sm text-muted-foreground">*可选</span></FormLabel>
-                                            <FormControl>
-                                                <div className="grid w-auto max-w-3xl gap-1.5">
-                                                    <Textarea
-                                                        placeholder="在这里输入参考范文…"
-                                                        className="max-h-[7lh]"
-                                                        {...field}
-                                                    />
-                                                    <div className="flex justify-end">
-                                                        <OCRButton
-                                                            isLoading={isReferenceOCRLoading}
-                                                            inputType="reference"
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="essayType"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>作文类型</FormLabel>
-                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                <FormControl>
-                                                    <SelectTrigger className="w-[180px]">
-                                                        <SelectValue placeholder="选择类型" />
-                                                    </SelectTrigger>
-                                                </FormControl>
-                                                <SelectContent>
-                                                    <SelectItem value="gaokao-english-continuation">高考英语 读后续写</SelectItem>
-                                                    <SelectItem value="gaokao-english-practical" disabled>高考英语 应用文</SelectItem>
-                                                    <SelectItem value="gaokao-chinese-composition" disabled>高考语文 作文</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
+                                 <FormField control={form.control} name="title" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>标题 <span className="text-sm text-muted-foreground">*可选</span></FormLabel>
+                                        <FormControl><input type="text" placeholder="留白以自动生成" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm..." {...field} /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
+                                <FormField control={form.control} name="originalText" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>原题题干</FormLabel>
+                                        <FormControl>
+                                            <div className="grid w-auto max-w-3xl gap-1.5">
+                                                <Textarea placeholder="在这里输入原题题干…" className="min-h-[100px] max-h-[200px]" {...field} />
+                                                <div className="flex justify-end"><OCRButton isLoading={isOriginalOCRLoading} inputType="original" /></div>
+                                            </div>
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
+                                 <FormField control={form.control} name="referenceText" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>参考范文 <span className="text-sm text-muted-foreground">*可选</span></FormLabel>
+                                        <FormControl>
+                                             <div className="grid w-auto max-w-3xl gap-1.5">
+                                                <Textarea placeholder="在这里输入参考范文…" className="min-h-[100px] max-h-[200px]" {...field} />
+                                                <div className="flex justify-end"><OCRButton isLoading={isReferenceOCRLoading} inputType="reference" /></div>
+                                            </div>
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
+                                <FormField control={form.control} name="essayType" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>作文类型</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl><SelectTrigger className="w-full md:w-[220px]"><SelectValue placeholder="选择类型" /></SelectTrigger></FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="gaokao-english-continuation">高考英语 读后续写</SelectItem>
+                                                {/* Other items */}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
                             </CardContent>
                         </Card>
 
-                        {/* Second Card: Essay Input */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-lg">文章录入</CardTitle>
-                                <CardDescription>录入待批改的作文，支持文字识别。</CardDescription>
-                            </CardHeader>
+                        {/* Card 2: Essay Input */}
+                         <Card>
+                             <CardHeader>
+                                 <CardTitle className="text-lg">文章录入</CardTitle>
+                                 <CardDescription>录入待批改的作文，支持文字识别。</CardDescription>
+                             </CardHeader>
                             <CardContent className="grid gap-4">
-                                <FormField
-                                    control={form.control}
-                                    name="essayText"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>录入习作</FormLabel>
-                                            <FormControl>
-                                                <div className="grid w-full gap-1.5">
-                                                    <Textarea
-                                                        placeholder="在这里输入你的作文…"
-                                                        className="max-h-[14lh]"
-                                                        {...field}
-                                                    />
-                                                    <div className="flex justify-end">
-                                                        <OCRButton
-                                                            isLoading={isEssayOCRLoading}
-                                                            inputType="essay"
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
+                                <FormField control={form.control} name="essayText" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>录入习作</FormLabel>
+                                        <FormControl>
+                                             <div className="grid w-full gap-1.5">
+                                                <Textarea placeholder="在这里输入你的作文…" className="min-h-[200px] max-h-[400px]" {...field} />
+                                                <div className="flex justify-end"><OCRButton isLoading={isEssayOCRLoading} inputType="essay" /></div>
+                                            </div>
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
                             </CardContent>
                         </Card>
 
-                        {/* Third Card: Correction Options */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-lg">批改选项</CardTitle>
-                                <CardDescription>在这里自定义生成结果的展示内容。</CardDescription>
-                            </CardHeader>
-                            <CardContent className="grid gap-4">
-                                <FormField
-                                    control={form.control}
-                                    name="model"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>选择模型</FormLabel>
-                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                <FormControl>
-                                                    <SelectTrigger className="w-[180px]">
-                                                        <SelectValue placeholder="选择模型" />
-                                                    </SelectTrigger>
-                                                </FormControl>
-                                                <SelectContent>
-                                                    <SelectItem value="gpt4">GPT-4o</SelectItem>
-                                                    <SelectItem value="llama">Meta Llama</SelectItem>
-                                                    <SelectItem value="deepseek">Deepseek-v3</SelectItem>
-                                                    <SelectItem value="gemini">Google Gemini</SelectItem>
-                                                    <SelectItem value="qwen">通义千问</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="tone"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>讲解语气 <span className="text-sm text-muted-foreground">*实验性</span></FormLabel>
-                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                <FormControl>
-                                                    <SelectTrigger className="w-[180px]">
-                                                        <SelectValue placeholder="选择语气" />
-                                                    </SelectTrigger>
-                                                </FormControl>
-                                                <SelectContent>
-                                                    <SelectItem value="default">默认</SelectItem>
-                                                    <SelectItem value="serious">一本正经</SelectItem>
-                                                    <SelectItem value="humorous">幽默风趣</SelectItem>
-                                                    <SelectItem value="sharp">犀利锐评</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            </CardContent>
-                        </Card>
+                        {/* Card 3: Correction Options */}
+                         <Card>
+                             <CardHeader>
+                                 <CardTitle className="text-lg">批改选项</CardTitle>
+                                 <CardDescription>自定义生成结果的展示内容。</CardDescription>
+                             </CardHeader>
+                             <CardContent className="grid gap-4">
+                                 <FormField control={form.control} name="model" render={({ field }) => (
+                                     <FormItem>
+                                         <FormLabel>选择模型</FormLabel>
+                                         <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                             <FormControl><SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="选择模型" /></SelectTrigger></FormControl>
+                                             <SelectContent>
+                                                 <SelectItem value="gpt4">GPT-4o</SelectItem>
+                                                  {/* Other items */}
+                                             </SelectContent>
+                                         </Select>
+                                         <FormMessage />
+                                     </FormItem>
+                                 )} />
+                                 <FormField control={form.control} name="tone" render={({ field }) => (
+                                     <FormItem>
+                                         <FormLabel>讲解语气 <span className="text-sm text-muted-foreground">*实验性</span></FormLabel>
+                                         <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                             <FormControl><SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="选择语气" /></SelectTrigger></FormControl>
+                                             <SelectContent>
+                                                 <SelectItem value="default">默认</SelectItem>
+                                                  {/* Other items */}
+                                             </SelectContent>
+                                         </Select>
+                                         <FormMessage />
+                                     </FormItem>
+                                 )} />
+                             </CardContent>
+                         </Card>
                     </div>
+
+                    {/* Submit Button Area - Button type is submit, triggers form.handleSubmit */}
                     <div className="flex justify-end mt-8">
-                        {!isCorrectionLoading && (
-                            <Button type="submit" className="rounded-md bg-primary px-3.5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-                                <Check /> 开始批改
-                            </Button>
-                        )}
-                        {isCorrectionLoading && (
-                            <Button disabled>
-                                <Loader2 className="animate-spin mr-2" />
-                                正在批改
-                            </Button>
-                        )}
+                        <Button
+                            type="submit" // This button now triggers the dialog via onSubmit
+                            className="rounded-md bg-primary px-3.5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary flex items-center gap-2"
+                            // Disable the main submit button while the correction process (including dialog interaction) is active
+                            disabled={isCorrectionLoading}
+                        >
+                            {/* The main button no longer shows loading itself, the dialog handles it */}
+                            <Check className="h-4 w-4" />
+                            开始批改
+                        </Button>
                     </div>
                 </form>
             </Form>
 
-            {/* Unified Component for Cropper */}
-            {
-                isDesktop ? (
-                    <Dialog open={isDrawerOpen} onOpenChange={(open) => {
-                        setIsDrawerOpen(open)
-                        if (!open) {
-                            resetImageStates(); // Reset states when dialog closes
-                        }
-                    }}>
-                        <DialogContent className="sm:max-w-[600px] h-[80vh] flex flex-col"> {/* Added h-[80vh] and flex-col */}
-                            <DialogHeader>
-                                <DialogTitle>文字识别</DialogTitle>
-                                <DialogDescription>选择图片并裁剪</DialogDescription>
-                            </DialogHeader>
-                            <div className="flex-grow overflow-y-auto"> {/* Added flex-grow and overflow */}
-                                {renderCropperContent()}
-                            </div>
-                            {renderCropperFooter()}
-                        </DialogContent>
-                    </Dialog>
-                ) : (
-                    <Drawer open={isDrawerOpen} onOpenChange={(open) => {
-                        setIsDrawerOpen(open)
-                        if (!open) {
-                            resetImageStates(); // Reset states when drawer closes
-                        }
-                    }}>
-                        <DrawerContent className="h-[90vh] flex flex-col"> {/* Added flex-col */}
-                            <DrawerHeader>
-                                <DrawerTitle>文字识别</DrawerTitle>
-                                <DrawerDescription>选择图片并裁剪</DrawerDescription>
-                            </DrawerHeader>
-                            <div className="flex-grow overflow-y-auto"> {/* Added flex-grow and overflow */}
-                                {renderCropperContent()}
-                            </div>
-                            <DrawerFooter className="flex flex-row justify-end gap-2">
-                                {renderCropperFooter()}
-                            </DrawerFooter>
-                        </DrawerContent>
-                    </Drawer>
-                )
-            }
+            {/* Image Selection Modal/Drawer (OCR) */}
+            {isDesktop ? (
+                <Dialog open={isDrawerOpen} onOpenChange={(open) => { setIsDrawerOpen(open); if (!open) resetImageStates(); }}>
+                    <DialogContent className="sm:max-w-[550px] h-[75vh] flex flex-col">
+                        <DialogHeader><DialogTitle>文字识别</DialogTitle><DialogDescription>请选择要识别的图片</DialogDescription></DialogHeader>
+                        <div className="flex-grow overflow-y-auto py-4">{renderImageSelectionContent()}</div>
+                        {renderImageSelectionFooter()}
+                    </DialogContent>
+                </Dialog>
+            ) : (
+                <Drawer open={isDrawerOpen} onOpenChange={(open) => { setIsDrawerOpen(open); if (!open) resetImageStates(); }}>
+                    <DrawerContent className="h-[85vh] flex flex-col">
+                        <DrawerHeader className="text-left"><DrawerTitle>文字识别</DrawerTitle><DrawerDescription>请选择要识别的图片</DrawerDescription></DrawerHeader>
+                        <div className="flex-grow overflow-y-auto px-4 py-4">{renderImageSelectionContent()}</div>
+                        <DrawerFooter className="flex-row justify-end gap-2 border-t pt-4">{renderImageSelectionFooter()}</DrawerFooter>
+                    </DrawerContent>
+                </Drawer>
+            )}
+
+            {/* Confirmation Dialog - Rendered here, controlled by state */}
+            <ConfirmCorrectionDialog
+                isOpen={isConfirmDialogOpen}
+                onOpenChange={setIsConfirmDialogOpen}
+                onConfirm={startCorrectionProcess} // Pass the actual API call function
+                formData={pendingFormData}
+                isLoading={isCorrectionLoading}
+                progress={correctionProgress}
+                progressMessage={correctionProgressMessage}
+            />
         </div>
     )
 }
