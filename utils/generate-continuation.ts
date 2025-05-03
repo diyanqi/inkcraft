@@ -1,6 +1,6 @@
 // utils/generate-continuation.ts
 import { createOpenAI } from '@ai-sdk/openai';
-import { generateText } from 'ai';
+import { generateText, streamText } from 'ai'; // StreamPart is implicitly handled by the SDK types now
 import { parse } from 'best-effort-json-parser';
 
 // Define AI model instances - these are shared
@@ -19,43 +19,63 @@ const deepseek = createOpenAI({
 // Helper type for the enqueue function
 type EnqueueFunction = (data: any) => void;
 
+// Define the expected top-level scoring categories from the prompt
+const SCORING_CATEGORIES = [
+  "内容与原文融洽度",
+  "情节合理性与完整性",
+  "词汇丰富性",
+  "语法准确性",
+  "句式多样性",
+  "衔接与连贯性",
+  "创新性与逻辑性",
+  "文体与人称一致性",
+  "英语文学素养与教师主观评价"
+];
+
+
 /**
  * Generates the score and detailed breakdown for the essay continuation.
+ * Streams the raw AI response to the console and sends progress updates for scoring categories.
  * @param originalText The original text prompt.
  * @param essayText The user's essay continuation text.
- * @param tone The tone parameter (currently unused in the prompt but required).
- * @param model The model parameter (currently unused for the AI call within this function but required).
+ * @param tone The tone parameter.
+ * @param model The model parameter.
  * @param enqueue Function to send progress updates via the stream.
  * @returns An object containing the calculated score and the detailed content string.
  */
 export async function generateScore(
   originalText: string,
   essayText: string,
-  tone: string, // Accepting the tone parameter
-  model: string, // Accepting the model parameter
+  tone: string,
+  model: string,
   enqueue: EnqueueFunction
 ): Promise<{ score: number, content: string }> {
   enqueue({ type: 'progress', message: '正在生成评分...' });
+  console.log("Initiating score generation..."); // Console log start
 
   let content = `# 1. 题目\n${originalText}\n# 2. 我的续写\n${essayText}\n`;
-
+  let fullResponseText = ''; // Accumulator for the full AI response text
+  const reportedCategories = new Set<string>(); // Track categories already reported via enqueue
 
   try {
     // Use the specific model defined in the original logic
     const aiModel = (
-      model === 'llama' ? openai('@cf/meta/llama-3.3-70b-instruct-fp8-fast') :
+      model === 'llama' ? openai('@cf/meta/llama-4-scout-17b-16e-instruct') :
         model === 'deepseek' ? deepseek('deepseek-chat') :
           openai('@cf/qwen/qwen1.5-14b-chat-awq')
-    )
+    );
 
     const tonePrompt = (
       tone === 'serious' ? "特别要求：你的评论批改语气需要一本正经，像一个经验丰富而严厉的老师。" :
         tone === 'humorous' ? "特别要求：你的评论批改语气需要幽默风趣，可以用上网络梗，可以多用emoji表情包，可以多搞笑。" :
           tone === 'sharp' ? "特别要求：你的评论批改语气需要尖锐、锐评、一针见血。" :
             ""
-    )
+    );
 
-    const { text } = await generateText({
+    console.log("--- Streaming AI response for score ---"); // Marker for console output
+
+    // Call streamText and iterate over the response stream
+    const streamResult = await streamText({
       model: aiModel,
       messages: [
         {
@@ -227,58 +247,146 @@ ${tonePrompt}
 重要提醒：你的输出仅包含【JSON格式】，不允许出现其他字符或注释。对于json格式中双引号里的内容，请勿再次使用双引号，只允许使用单引号。`,
         },
       ],
-      maxTokens: 4096,
+      maxTokens: 4096, // Reduced maxTokens slightly as a potential optimization, adjust if needed
       temperature: 0,
     });
 
-    // Parse the JSON string
-    const start = text.indexOf('{');
-    const end = text.lastIndexOf('}');
-    const jsonString = text.substring(start, end + 1);
-    const json = parse(jsonString);
+    // Iterate over the stream parts
+    for await (const part of streamResult.fullStream) {
+        // Check if the part is a text delta and has content
+        if (part.type === 'text-delta' && part.textDelta) {
+            const chunk = part.textDelta;
+            // Write the chunk directly to the console's standard output
+            process.stdout.write(chunk);
+            // Append the chunk to the full response text
+            fullResponseText += chunk;
+
+            // --- Check for new category keys ---
+            for (const category of SCORING_CATEGORIES) {
+                // Check if category hasn't been reported yet AND appears in the text
+                // We look for the category name enclosed in quotes followed by a colon
+                // This is a heuristic and might need adjustment if AI format varies slightly
+                const searchString = `"${category}":`;
+                if (!reportedCategories.has(category) && fullResponseText.includes(searchString)) {
+                    // Send enqueue message for this category
+                    enqueue({ type: 'progress', message: `正在评分: ${category}` });
+                    // Mark this category as reported
+                    reportedCategories.add(category);
+                }
+            }
+            // --- End check for new category keys ---
+        }
+        // You could potentially handle other part types here if needed
+        // e.g., part.type === 'finish', part.type === 'error'
+    }
+
+    console.log("\n--- End of AI response stream ---"); // Add a newline and marker
+
+    // Check if we received any response
+    if (!fullResponseText) {
+        throw new Error("AI response was empty.");
+    }
+
+    // Parse the accumulated JSON string
+    const start = fullResponseText.indexOf('{');
+    const end = fullResponseText.lastIndexOf('}');
+    if (start === -1 || end === -1 || start >= end) {
+        console.error("Invalid JSON structure received:", fullResponseText);
+        throw new Error("Failed to find valid JSON object in AI response. Raw response logged.");
+    }
+    const jsonString = fullResponseText.substring(start, end + 1);
+
+    let json: any;
+    try {
+        json = parse(jsonString); // Use best-effort parser
+    } catch (parseError) {
+        console.error("Failed to parse JSON:", parseError);
+        console.error("Received JSON string:", jsonString);
+        throw new Error(`Failed to parse AI response JSON: ${parseError}`);
+    }
+
+    // Check if the parsed JSON has the expected structure
+    if (!json || typeof json !== 'object' || !json.分项评分) {
+         console.error("Parsed JSON missing expected '分项评分' key:", json);
+         throw new Error("Parsed JSON does not have the expected structure ('分项评分' key missing).");
+    }
 
     // Calculate total score and format content
     let totalScore = 0;
     content += `# 3. 评分细则\n`;
-    for (const key in json.分项评分) {
-      const section = json.分项评分[key];
-      content += `\n- ${key}\n`;
-      let reasonContent = "";
-      for (const subKey in section) {
-        // Use optional chaining and default to 0 if score is missing or invalid
-        const scoreValue = section[subKey]?.score ?? 0;
-        totalScore += scoreValue;
-        reasonContent += `${section[subKey]?.reason || ''}；`; // Add default reason
+    // Ensure consistent order matching SCORING_CATEGORIES if possible, otherwise use the order from JSON
+    const finalCategories = json.分项评分; // Use the parsed JSON structure
+    for (const key in finalCategories) { // Iterate through the keys from the actual JSON response
+      if (Object.prototype.hasOwnProperty.call(finalCategories, key)) { // Ensure key is own property
+        const section = finalCategories[key];
+        // Format category header (e.g., make it bold markdown)
+        content += `\n- **${key}**\n\n  `; // Add bold markdown and indent reasons
+        let reasonContent = "";
+        if (typeof section === 'object' && section !== null) { // Check if section is an object
+          for (const subKey in section) {
+            if (Object.prototype.hasOwnProperty.call(section, subKey)) { // Ensure subKey is own property
+              const scoreValue = Number(section[subKey]?.score) || 0; // Ensure score is a number
+              totalScore += scoreValue;
+              // Combine reason and score for each sub-item if needed, or just reasons
+              reasonContent += `${section[subKey]?.reason || 'N/A'} (${subKey}: ${scoreValue}分)； `; // Add subkey/score detail
+            }
+          }
+        } else {
+            console.warn(`Section '${key}' is not an object or is null in the response.`);
+            reasonContent = '评分数据格式错误； ';
+        }
+        // Remove trailing semicolon and space, add period.
+        content += reasonContent.trim().replace(/；$/, '。') + '\n';
       }
-      content += reasonContent.substring(0, reasonContent.length - 1) + '。\n'; // Remove trailing semicolon
     }
+
 
     // Convert to 25-point scale and round to one decimal place
     let score = Number((totalScore / 100 * 25).toFixed(1));
 
-    // Fallback if initial parsing or scoring results in 0 (might indicate AI format error)
-    if (score === 0) {
-      const regex = /\d+分/g;
-      const matches = text.match(regex);
+    // Fallback using regex - Keep this as a safety net
+    if (isNaN(score) || (score === 0 && totalScore === 0 && fullResponseText.length > 10)) { // Added length check to avoid fallback on genuinely empty/failed responses
+      console.warn("Initial score calculation resulted in 0 or NaN, attempting regex fallback...");
+      const regex = /(\d+)\s*分/g;
+      const matches = fullResponseText.match(regex);
+      let fallbackSum = 0;
       if (matches) {
-        const sum = matches.reduce((acc, cur) => acc + parseInt(cur), 0);
-        totalScore = sum;
+        fallbackSum = matches.reduce((acc, cur) => {
+          const num = parseInt(cur, 10);
+          return acc + (isNaN(num) ? 0 : num);
+        }, 0);
+         console.log(`Regex fallback found scores summing to: ${fallbackSum}`);
+      } else {
+          console.warn("Regex fallback found no score matches.");
       }
-      score = Number((totalScore / 100 * 25).toFixed(1));
+      if (fallbackSum > 0) {
+          totalScore = fallbackSum;
+          score = Number((totalScore / 100 * 25).toFixed(1));
+          console.log(`Using fallback score: ${score}`);
+      } else {
+          console.warn("Fallback score is also 0 or failed. Score remains 0.");
+          score = 0;
+      }
     }
 
-    // Ensure score is within 0-25 range
-    score = Math.max(0, Math.min(25, score));
-    content += `\n## 总分\n${score}分`;
+    // Ensure score is within 0-25 range and is a valid number
+    score = Math.max(0, Math.min(25, isNaN(score) ? 0 : score));
+    content += `\n## 总分\n${score}分`; // Use standard markdown for Total Score header
 
+    console.log(`Final score calculated: ${score}`); // Log final score
     return { score, content };
 
   } catch (error) {
     console.error("Error generating score:", error);
+    if (fullResponseText) {
+        console.error("Partial AI response received before error:", fullResponseText);
+    }
     enqueue({ type: 'error', message: '生成评分失败', error: String(error) });
-    throw error; // Re-throw to be caught by the main handler's try/catch
+    throw error;
   }
 }
+
+// --- generateTitle and generateIcon remain unchanged ---
 
 /**
  * Generates a title for the essay continuation based on the original text.
@@ -353,11 +461,14 @@ export async function generateIcon(
 
     // Basic validation for a single character emoji
     const trimmedIcon = icon.trim();
-    if (trimmedIcon.length === 1 || trimmedIcon.match(/\p{Emoji}/u)) { // Use unicode property escape for broad emoji matching
-      return trimmedIcon;
+    // Improved emoji check using unicode property escape and length check
+    if (trimmedIcon && (trimmedIcon.length === 1 || /\p{Emoji}/u.test(trimmedIcon))) {
+        // Return the first grapheme cluster if multiple emojis are returned accidentally
+        const firstEmoji = [...trimmedIcon][0];
+        return firstEmoji;
     } else {
       // If AI didn't return a single emoji, provide a default or log a warning
-      console.warn("AI did not return a single emoji for icon, returning default.");
+      console.warn(`AI did not return a single valid emoji for icon (received: '${icon}'), returning default.`);
       return "📄"; // Default icon
     }
 

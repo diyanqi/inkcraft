@@ -255,7 +255,7 @@ export default function CorrectionDetailPage() {
             ),
             // 增强段落样式
             p: ({ node, ...props }) => (
-              <p className="indent-8 my-5 leading-loose tracking-wide font-literature text-gray-800 dark:text-gray-200 transition-colors duration-300 hover:text-gray-900 dark:hover:text-gray-100" {...props} />
+              <p className="text-lg indent-8 my-2 leading-6 tracking-wide font-semibold text-gray-800 dark:text-gray-200 transition-colors duration-300 hover:text-gray-900 dark:hover:text-gray-100" {...props} />
             ),
           }}
         >

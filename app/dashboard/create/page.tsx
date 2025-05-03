@@ -217,7 +217,7 @@ export default function CreatePage() {
             referenceText: "",
             essayType: "gaokao-english-continuation",
             essayText: "",
-            model: "gpt4",
+            model: "llama",
             tone: "default"
         }
     });
