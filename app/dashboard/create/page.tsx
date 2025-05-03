@@ -113,12 +113,12 @@ function ConfirmCorrectionDialog({
     };
 
     const getEssayTypeDisplayName = (value: string) => {
-         const options: { [key: string]: string } = {
-             "gaokao-english-continuation": "高考英语 读后续写",
-             "gaokao-english-practical": "高考英语 应用文",
-             "gaokao-chinese-composition": "高考语文 作文",
-         };
-         return options[value] || value;
+        const options: { [key: string]: string } = {
+            "gaokao-english-continuation": "高考英语 读后续写",
+            "gaokao-english-practical": "高考英语 应用文",
+            "gaokao-chinese-composition": "高考语文 作文",
+        };
+        return options[value] || value;
     }
 
     return (
@@ -132,17 +132,17 @@ function ConfirmCorrectionDialog({
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                     {/* Display summary of options */}
-                     <div className="grid grid-cols-3 items-center gap-4">
+                    <div className="grid grid-cols-3 items-center gap-4">
                         <Label className="text-right text-muted-foreground">作文类型</Label>
                         <div className="col-span-2 font-medium">{getEssayTypeDisplayName(formData.essayType)}</div>
                     </div>
-                     <div className="grid grid-cols-3 items-center gap-4">
+                    <div className="grid grid-cols-3 items-center gap-4">
                         <Label className="text-right text-muted-foreground">选用模型</Label>
                         <div className="col-span-2 font-medium">{getModelDisplayName(formData.model)}</div>
                     </div>
                     <div className="grid grid-cols-3 items-center gap-4">
                         <Label className="text-right text-muted-foreground">讲解语气</Label>
-                         <div className="col-span-2 font-medium">{getToneDisplayName(formData.tone)}</div>
+                        <div className="col-span-2 font-medium">{getToneDisplayName(formData.tone)}</div>
                     </div>
 
                     {/* Progress Section - Visible only when loading */}
@@ -168,19 +168,19 @@ function ConfirmCorrectionDialog({
                             </Button>
                         </>
                     ) : (
-                         // Show only a disabled "Processing" button or nothing while loading
-                         // Or keep the cancel button active? Let's keep Cancel active.
-                         <>
+                        // Show only a disabled "Processing" button or nothing while loading
+                        // Or keep the cancel button active? Let's keep Cancel active.
+                        <>
                             <DialogClose asChild>
-                                 <Button type="button" variant="outline" disabled={isLoading}>
-                                     取消
-                                 </Button>
-                             </DialogClose>
+                                <Button type="button" variant="outline" disabled={isLoading}>
+                                    取消
+                                </Button>
+                            </DialogClose>
                             <Button type="button" disabled>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                 批改中...
                             </Button>
-                         </>
+                        </>
                     )}
                 </DialogFooter>
             </DialogContent>
@@ -225,7 +225,7 @@ export default function CreatePage() {
     // --- Functions ---
 
     // Image handling (handleImageChange, handleDrop, handleDragOver) - unchanged
-     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (!file) return
 
@@ -262,7 +262,7 @@ export default function CreatePage() {
 
     // handleOCR - unchanged (keeps its own toasts for success/error)
     const handleOCR = async (file: Blob, inputType: 'original' | 'reference' | 'essay') => {
-         const setLoadingState = {
+        const setLoadingState = {
             original: setIsOriginalOCRLoading,
             reference: setIsReferenceOCRLoading,
             essay: setIsEssayOCRLoading,
@@ -296,7 +296,7 @@ export default function CreatePage() {
             }
         } catch (err) {
             console.error("OCR Fetch or Processing Error:", err);
-             // Keep OCR toast for failure
+            // Keep OCR toast for failure
             toast.error(`OCR 失败: ${err instanceof Error ? err.message : "请重试"}`);
         } finally {
             setLoadingState(false);
@@ -305,7 +305,7 @@ export default function CreatePage() {
 
 
     // handleProceedOCR (calls handleOCR) - unchanged
-     const handleProceedOCR = async () => {
+    const handleProceedOCR = async () => {
         if (!imageSrc || !activeInput) {
             toast.error("没有可识别的图片");
             return;
@@ -393,8 +393,8 @@ export default function CreatePage() {
                                     }, 500); // 0.5s delay
                                     return; // Exit loop and function
                                 } else {
-                                     toast.error('批改完成但未收到ID，请检查');
-                                     setIsConfirmDialogOpen(false); // Close dialog
+                                    toast.error('批改完成但未收到ID，请检查');
+                                    setIsConfirmDialogOpen(false); // Close dialog
                                 }
                                 break;
                             default:
@@ -406,21 +406,21 @@ export default function CreatePage() {
                     }
                 }
             }
-             // Handle any remaining data (less likely needed with the robust loop)
-             if (accumulatedData.trim()) {
-                  console.log("Processing remaining data:", accumulatedData);
-                   // Try processing final chunk if any
-             }
+            // Handle any remaining data (less likely needed with the robust loop)
+            if (accumulatedData.trim()) {
+                console.log("Processing remaining data:", accumulatedData);
+                // Try processing final chunk if any
+            }
 
         } catch (e) {
             // Handle fetch errors or errors thrown from stream processing
             if (e instanceof Error && !e.message.includes('Failed to fetch')) {
-                 // Avoid double toasting if already handled in 'error' case
-                 // toast.error(`请求出错: ${e.message}`); // Already toasted usually
+                // Avoid double toasting if already handled in 'error' case
+                // toast.error(`请求出错: ${e.message}`); // Already toasted usually
             } else if (e instanceof Error && e.message.includes('Failed to fetch')) {
                 toast.error('网络请求失败，请检查连接');
             } else {
-                 toast.error('发生未知错误');
+                toast.error('发生未知错误');
             }
             console.error('Correction Process Error:', e);
             setIsConfirmDialogOpen(false); // Ensure dialog closes on any error
@@ -433,7 +433,7 @@ export default function CreatePage() {
                 // setCorrectionProgress(0);
                 // setCorrectionProgressMessage("");
                 setPendingFormData(null); // Clear pending data after attempt (success or failure)
-           }
+            }
         }
     };
 
@@ -445,7 +445,7 @@ export default function CreatePage() {
         // 2. Reset progress from previous attempts
         setCorrectionProgress(0);
         setCorrectionProgressMessage("");
-         // 3. Open the confirmation dialog
+        // 3. Open the confirmation dialog
         setIsConfirmDialogOpen(true);
         // Note: isCorrectionLoading is set to true inside startCorrectionProcess
     };
@@ -453,7 +453,7 @@ export default function CreatePage() {
     // --- Render Helper Components ---
 
     // OCRButton - unchanged
-     const OCRButton = ({ isLoading, inputType }: { isLoading: boolean, inputType: 'original' | 'reference' | 'essay' }) => (
+    const OCRButton = ({ isLoading, inputType }: { isLoading: boolean, inputType: 'original' | 'reference' | 'essay' }) => (
         <Button
             type="button"
             className="flex items-center gap-1 text-sm"
@@ -493,7 +493,7 @@ export default function CreatePage() {
     const renderImageSelectionFooter = () => (
         <div className="flex flex-row justify-end gap-2 pt-4 border-t">
             {imageSrc && (
-                 <Button onClick={resetImageStates} variant="ghost" disabled={isOriginalOCRLoading || isReferenceOCRLoading || isEssayOCRLoading}>
+                <Button onClick={resetImageStates} variant="ghost" disabled={isOriginalOCRLoading || isReferenceOCRLoading || isEssayOCRLoading}>
                     <RotateCcw className="w-4 h-4 mr-1" /> 重新选择
                 </Button>
             )}
@@ -514,16 +514,16 @@ export default function CreatePage() {
             <Form {...form}>
                 {/* Form structure remains the same - uses form.handleSubmit(onSubmit) */}
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                     {/* Grid for Cards */}
-                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    {/* Grid for Cards */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                         {/* Card 1: Question Input */}
-                         <Card>
+                        <Card>
                             <CardHeader>
                                 <CardTitle className="text-lg">题干录入</CardTitle>
                                 <CardDescription>录入原题及范文，支持文字识别。</CardDescription>
                             </CardHeader>
                             <CardContent className="grid gap-4">
-                                 <FormField control={form.control} name="title" render={({ field }) => (
+                                <FormField control={form.control} name="title" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>标题 <span className="text-sm text-muted-foreground">*可选</span></FormLabel>
                                         <FormControl><input type="text" placeholder="留白以自动生成" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm..." {...field} /></FormControl>
@@ -542,11 +542,11 @@ export default function CreatePage() {
                                         <FormMessage />
                                     </FormItem>
                                 )} />
-                                 <FormField control={form.control} name="referenceText" render={({ field }) => (
+                                <FormField control={form.control} name="referenceText" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>参考范文 <span className="text-sm text-muted-foreground">*可选</span></FormLabel>
                                         <FormControl>
-                                             <div className="grid w-auto max-w-3xl gap-1.5">
+                                            <div className="grid w-auto max-w-3xl gap-1.5">
                                                 <Textarea placeholder="在这里输入参考范文…" className="min-h-[100px] max-h-[200px]" {...field} />
                                                 <div className="flex justify-end"><OCRButton isLoading={isReferenceOCRLoading} inputType="reference" /></div>
                                             </div>
@@ -571,17 +571,17 @@ export default function CreatePage() {
                         </Card>
 
                         {/* Card 2: Essay Input */}
-                         <Card>
-                             <CardHeader>
-                                 <CardTitle className="text-lg">文章录入</CardTitle>
-                                 <CardDescription>录入待批改的作文，支持文字识别。</CardDescription>
-                             </CardHeader>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-lg">文章录入</CardTitle>
+                                <CardDescription>录入待批改的作文，支持文字识别。</CardDescription>
+                            </CardHeader>
                             <CardContent className="grid gap-4">
                                 <FormField control={form.control} name="essayText" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>录入习作</FormLabel>
                                         <FormControl>
-                                             <div className="grid w-full gap-1.5">
+                                            <div className="grid w-full gap-1.5">
                                                 <Textarea placeholder="在这里输入你的作文…" className="min-h-[200px] max-h-[400px]" {...field} />
                                                 <div className="flex justify-end"><OCRButton isLoading={isEssayOCRLoading} inputType="essay" /></div>
                                             </div>
@@ -593,40 +593,45 @@ export default function CreatePage() {
                         </Card>
 
                         {/* Card 3: Correction Options */}
-                         <Card>
-                             <CardHeader>
-                                 <CardTitle className="text-lg">批改选项</CardTitle>
-                                 <CardDescription>自定义生成结果的展示内容。</CardDescription>
-                             </CardHeader>
-                             <CardContent className="grid gap-4">
-                                 <FormField control={form.control} name="model" render={({ field }) => (
-                                     <FormItem>
-                                         <FormLabel>选择模型</FormLabel>
-                                         <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                             <FormControl><SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="选择模型" /></SelectTrigger></FormControl>
-                                             <SelectContent>
-                                                 <SelectItem value="gpt4">GPT-4o</SelectItem>
-                                                  {/* Other items */}
-                                             </SelectContent>
-                                         </Select>
-                                         <FormMessage />
-                                     </FormItem>
-                                 )} />
-                                 <FormField control={form.control} name="tone" render={({ field }) => (
-                                     <FormItem>
-                                         <FormLabel>讲解语气 <span className="text-sm text-muted-foreground">*实验性</span></FormLabel>
-                                         <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                             <FormControl><SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="选择语气" /></SelectTrigger></FormControl>
-                                             <SelectContent>
-                                                 <SelectItem value="default">默认</SelectItem>
-                                                  {/* Other items */}
-                                             </SelectContent>
-                                         </Select>
-                                         <FormMessage />
-                                     </FormItem>
-                                 )} />
-                             </CardContent>
-                         </Card>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-lg">批改选项</CardTitle>
+                                <CardDescription>自定义生成结果的展示内容。</CardDescription>
+                            </CardHeader>
+                            <CardContent className="grid gap-4">
+                                <FormField control={form.control} name="model" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>选择模型</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl><SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="选择模型" /></SelectTrigger></FormControl>
+                                            <SelectContent>
+                                                {/* <SelectItem value="gpt4">GPT-4o</SelectItem> */}
+                                                <SelectItem value="deepseek">Deepseek-v3</SelectItem>
+                                                <SelectItem value="llama">Llama 3.3</SelectItem>
+                                                {/* Other items */}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
+                                <FormField control={form.control} name="tone" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>讲解语气 <span className="text-sm text-muted-foreground">*实验性</span></FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl><SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="选择语气" /></SelectTrigger></FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="default">默认</SelectItem>
+                                                <SelectItem value="serious">一本正经</SelectItem>
+                                                <SelectItem value="humorous">幽默风趣</SelectItem>
+                                                <SelectItem value="sharp">犀利锐评</SelectItem>
+                                                {/* Other items */}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
+                            </CardContent>
+                        </Card>
                     </div>
 
                     {/* Submit Button Area - Button type is submit, triggers form.handleSubmit */}
