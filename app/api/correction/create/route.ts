@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: "缺少必要参数" }, { status: 400 });
     }
     // 校验 model
-    if (!['llama', 'deepseek'].includes(body.model)) {
+    if (!['llama', 'deepseek', 'qwen', 'glm', 'gpt4'].includes(body.model)) {
       return NextResponse.json({ success: false, message: "无效的模型参数" }, { status: 400 });
     }
     // 校验 essayType

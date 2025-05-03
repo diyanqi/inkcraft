@@ -98,6 +98,7 @@ function ConfirmCorrectionDialog({
             "deepseek": "Deepseek-v3",
             "gemini": "Google Gemini",
             "qwen": "通义千问",
+            "glm": "智谱清言",
         };
         return options[value] || value;
     };
@@ -217,7 +218,7 @@ export default function CreatePage() {
             referenceText: "",
             essayType: "gaokao-english-continuation",
             essayText: "",
-            model: "llama",
+            model: "qwen",
             tone: "default"
         }
     });
@@ -608,6 +609,8 @@ export default function CreatePage() {
                                                 {/* <SelectItem value="gpt4">GPT-4o</SelectItem> */}
                                                 <SelectItem value="deepseek">Deepseek-v3</SelectItem>
                                                 <SelectItem value="llama">Llama 3.3</SelectItem>
+                                                <SelectItem value="qwen">通义千问 3</SelectItem>
+                                                <SelectItem value="glm">智谱清言 4</SelectItem>
                                                 {/* Other items */}
                                             </SelectContent>
                                         </Select>

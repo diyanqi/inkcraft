@@ -16,6 +16,17 @@ const deepseek = createOpenAI({
   compatibility: 'compatible',
 });
 
+const siliconflow = createOpenAI({
+  baseURL: process.env.SILICONFLOW_API_BASEURL || '',
+  apiKey: process.env.SILICONFLOW_API_APIKEY || '',
+  compatibility: 'compatible',
+})
+
+const gpt = createOpenAI({
+  baseURL: process.env.GPT_API_BASEURL || '',
+  apiKey: process.env.GPT_API_APIKEY || '',
+  compatibility: 'compatible',
+})
 // Helper type for the enqueue function
 type EnqueueFunction = (data: any) => void;
 
@@ -62,7 +73,10 @@ export async function generateScore(
     const aiModel = (
       model === 'llama' ? openai('@cf/meta/llama-4-scout-17b-16e-instruct') :
         model === 'deepseek' ? deepseek('deepseek-chat') :
-          openai('@cf/qwen/qwen1.5-14b-chat-awq')
+          model === 'qwen' ? siliconflow('Qwen/Qwen3-8B') :
+            model === 'glm' ? siliconflow('THUDM/GLM-Z1-9B-0414') :
+              model === 'gpt4' ? siliconflow('gpt-3.5-turbo') :
+                openai('@cf/qwen/qwen1.5-14b-chat-awq')
     );
 
     const tonePrompt = (
@@ -83,7 +97,7 @@ export async function generateScore(
           content: `"你是一个高考英语读后续写的阅卷老师，现在有一个高考英语读后续写作文题目和一篇待批改续写作文，需要你对这篇待批改作文进行评分。
 要求：
 1）请认真阅读作文批改要求和作文题目，对这篇待批改作文进行公正严格的批改和打分；
-2）评分一定要严格，不能轻易给出高分。
+2）评分一定要严格，实事求是，好的给高分，差的给低分。
 3）最后返回内容要严格按照最后的输出格式。
 
 一、作文批改要求
@@ -248,67 +262,68 @@ ${tonePrompt}
         },
       ],
       maxTokens: 4096, // Reduced maxTokens slightly as a potential optimization, adjust if needed
-      temperature: 0,
+      // temperature: 0,
+      topP: 0.1,
     });
 
     // Iterate over the stream parts
     for await (const part of streamResult.fullStream) {
-        // Check if the part is a text delta and has content
-        if (part.type === 'text-delta' && part.textDelta) {
-            const chunk = part.textDelta;
-            // Write the chunk directly to the console's standard output
-            process.stdout.write(chunk);
-            // Append the chunk to the full response text
-            fullResponseText += chunk;
+      // Check if the part is a text delta and has content
+      if (part.type === 'text-delta' && part.textDelta) {
+        const chunk = part.textDelta;
+        // Write the chunk directly to the console's standard output
+        process.stdout.write(chunk);
+        // Append the chunk to the full response text
+        fullResponseText += chunk;
 
-            // --- Check for new category keys ---
-            for (const category of SCORING_CATEGORIES) {
-                // Check if category hasn't been reported yet AND appears in the text
-                // We look for the category name enclosed in quotes followed by a colon
-                // This is a heuristic and might need adjustment if AI format varies slightly
-                const searchString = `"${category}":`;
-                if (!reportedCategories.has(category) && fullResponseText.includes(searchString)) {
-                    // Send enqueue message for this category
-                    enqueue({ type: 'progress', message: `正在评分: ${category}` });
-                    // Mark this category as reported
-                    reportedCategories.add(category);
-                }
-            }
-            // --- End check for new category keys ---
+        // --- Check for new category keys ---
+        for (const category of SCORING_CATEGORIES) {
+          // Check if category hasn't been reported yet AND appears in the text
+          // We look for the category name enclosed in quotes followed by a colon
+          // This is a heuristic and might need adjustment if AI format varies slightly
+          const searchString = `"${category}":`;
+          if (!reportedCategories.has(category) && fullResponseText.includes(searchString)) {
+            // Send enqueue message for this category
+            enqueue({ type: 'progress', message: `正在评分: ${category}` });
+            // Mark this category as reported
+            reportedCategories.add(category);
+          }
         }
-        // You could potentially handle other part types here if needed
-        // e.g., part.type === 'finish', part.type === 'error'
+        // --- End check for new category keys ---
+      }
+      // You could potentially handle other part types here if needed
+      // e.g., part.type === 'finish', part.type === 'error'
     }
 
     console.log("\n--- End of AI response stream ---"); // Add a newline and marker
 
     // Check if we received any response
     if (!fullResponseText) {
-        throw new Error("AI response was empty.");
+      throw new Error("AI response was empty.");
     }
 
     // Parse the accumulated JSON string
     const start = fullResponseText.indexOf('{');
     const end = fullResponseText.lastIndexOf('}');
     if (start === -1 || end === -1 || start >= end) {
-        console.error("Invalid JSON structure received:", fullResponseText);
-        throw new Error("Failed to find valid JSON object in AI response. Raw response logged.");
+      console.error("Invalid JSON structure received:", fullResponseText);
+      throw new Error("Failed to find valid JSON object in AI response. Raw response logged.");
     }
     const jsonString = fullResponseText.substring(start, end + 1);
 
     let json: any;
     try {
-        json = parse(jsonString); // Use best-effort parser
+      json = parse(jsonString); // Use best-effort parser
     } catch (parseError) {
-        console.error("Failed to parse JSON:", parseError);
-        console.error("Received JSON string:", jsonString);
-        throw new Error(`Failed to parse AI response JSON: ${parseError}`);
+      console.error("Failed to parse JSON:", parseError);
+      console.error("Received JSON string:", jsonString);
+      throw new Error(`Failed to parse AI response JSON: ${parseError}`);
     }
 
     // Check if the parsed JSON has the expected structure
     if (!json || typeof json !== 'object' || !json.分项评分) {
-         console.error("Parsed JSON missing expected '分项评分' key:", json);
-         throw new Error("Parsed JSON does not have the expected structure ('分项评分' key missing).");
+      console.error("Parsed JSON missing expected '分项评分' key:", json);
+      throw new Error("Parsed JSON does not have the expected structure ('分项评分' key missing).");
     }
 
     // Calculate total score and format content
@@ -328,12 +343,12 @@ ${tonePrompt}
               const scoreValue = Number(section[subKey]?.score) || 0; // Ensure score is a number
               totalScore += scoreValue;
               // Combine reason and score for each sub-item if needed, or just reasons
-              reasonContent += `${section[subKey]?.reason || 'N/A'} (${subKey}: ${scoreValue}分)； `; // Add subkey/score detail
+              reasonContent += `${section[subKey]?.reason || 'N/A'}； `; // Add subkey/score detail
             }
           }
         } else {
-            console.warn(`Section '${key}' is not an object or is null in the response.`);
-            reasonContent = '评分数据格式错误； ';
+          console.warn(`Section '${key}' is not an object or is null in the response.`);
+          reasonContent = '评分数据格式错误； ';
         }
         // Remove trailing semicolon and space, add period.
         content += reasonContent.trim().replace(/；$/, '。') + '\n';
@@ -355,17 +370,17 @@ ${tonePrompt}
           const num = parseInt(cur, 10);
           return acc + (isNaN(num) ? 0 : num);
         }, 0);
-         console.log(`Regex fallback found scores summing to: ${fallbackSum}`);
+        console.log(`Regex fallback found scores summing to: ${fallbackSum}`);
       } else {
-          console.warn("Regex fallback found no score matches.");
+        console.warn("Regex fallback found no score matches.");
       }
       if (fallbackSum > 0) {
-          totalScore = fallbackSum;
-          score = Number((totalScore / 100 * 25).toFixed(1));
-          console.log(`Using fallback score: ${score}`);
+        totalScore = fallbackSum;
+        score = Number((totalScore / 100 * 25).toFixed(1));
+        console.log(`Using fallback score: ${score}`);
       } else {
-          console.warn("Fallback score is also 0 or failed. Score remains 0.");
-          score = 0;
+        console.warn("Fallback score is also 0 or failed. Score remains 0.");
+        score = 0;
       }
     }
 
@@ -379,7 +394,7 @@ ${tonePrompt}
   } catch (error) {
     console.error("Error generating score:", error);
     if (fullResponseText) {
-        console.error("Partial AI response received before error:", fullResponseText);
+      console.error("Partial AI response received before error:", fullResponseText);
     }
     enqueue({ type: 'error', message: '生成评分失败', error: String(error) });
     throw error;
@@ -463,9 +478,9 @@ export async function generateIcon(
     const trimmedIcon = icon.trim();
     // Improved emoji check using unicode property escape and length check
     if (trimmedIcon && (trimmedIcon.length === 1 || /\p{Emoji}/u.test(trimmedIcon))) {
-        // Return the first grapheme cluster if multiple emojis are returned accidentally
-        const firstEmoji = [...trimmedIcon][0];
-        return firstEmoji;
+      // Return the first grapheme cluster if multiple emojis are returned accidentally
+      const firstEmoji = [...trimmedIcon][0];
+      return firstEmoji;
     } else {
       // If AI didn't return a single emoji, provide a default or log a warning
       console.warn(`AI did not return a single valid emoji for icon (received: '${icon}'), returning default.`);
