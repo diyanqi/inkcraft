@@ -114,10 +114,10 @@ export default function Home() {
   }, { scope: container }); // scope ensures animations are cleaned up
 
   return (
-    <div ref={container} className="bg-gradient-to-b from-white to-gray-50 dark:from-gray-900 dark:to-black overflow-x-hidden"> {/* Added overflow-x-hidden */}
+    <div ref={container} className="bg-gradient-to-b from-white to-gray-50 dark:from-gray-900 dark:to-black overflow-hidden"> {/* Added overflow-x-hidden */}
 
       {/* Hero Section - Assign ref 0 */}
-      <main ref={el => { sectionRefs.current[0] = el as HTMLDivElement | null; }} className="min-h-screen flex flex-col items-center justify-center text-center space-y-6 p-8">
+      <main ref={el => { sectionRefs.current[0] = el as HTMLDivElement | null; }} className="min-h-screen flex flex-col items-center justify-center text-center space-y-6 p-8 overflow-hidden">
         <h1 className="text-6xl md:text-8xl font-bold tracking-tighter">
           <span className="text-gray-900 dark:text-white">墨灵</span>
           <span className="text-gray-500 dark:text-gray-400 ml-4">InkCraft</span>
