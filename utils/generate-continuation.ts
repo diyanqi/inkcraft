@@ -1,36 +1,13 @@
 // utils/generate-continuation.ts
-import { createOpenAI } from '@ai-sdk/openai';
-import { generateText, streamText } from 'ai'; // StreamPart is implicitly handled by the SDK types now
+import { generateText, streamText } from 'ai';
 import { parse } from 'best-effort-json-parser';
+// Import the defined models
+import { openai, deepseek, siliconflow, gpt } from './models';
 
-// Define AI model instances - these are shared
-const openai = createOpenAI({
-  baseURL: process.env.OPENAI_API_BASEURL || '',
-  apiKey: process.env.OPENAI_API_APIKEY || '',
-  compatibility: 'compatible',
-});
-
-const deepseek = createOpenAI({
-  baseURL: process.env.DEEPSEEK_API_BASEURL || '',
-  apiKey: process.env.DEEPSEEK_API_APIKEY || '',
-  compatibility: 'compatible',
-});
-
-const siliconflow = createOpenAI({
-  baseURL: process.env.SILICONFLOW_API_BASEURL || '',
-  apiKey: process.env.SILICONFLOW_API_APIKEY || '',
-  compatibility: 'compatible',
-})
-
-const gpt = createOpenAI({
-  baseURL: process.env.GPT_API_BASEURL || '',
-  apiKey: process.env.GPT_API_APIKEY || '',
-  compatibility: 'compatible',
-})
 // Helper type for the enqueue function
 type EnqueueFunction = (data: any) => void;
 
-// Define the expected top-level scoring categories from the prompt
+// Define the expected top-level scoring categories from the prompt (used by generateScore)
 const SCORING_CATEGORIES = [
   "内容与原文融洽度",
   "情节合理性与完整性",
@@ -42,7 +19,6 @@ const SCORING_CATEGORIES = [
   "文体与人称一致性",
   "英语文学素养与教师主观评价"
 ];
-
 
 /**
  * Generates the score and detailed breakdown for the essay continuation.
@@ -76,7 +52,7 @@ export async function generateScore(
           model === 'qwen' ? siliconflow('Qwen/Qwen3-8B') :
             model === 'glm' ? siliconflow('THUDM/GLM-Z1-9B-0414') :
               model === 'gpt4' ? siliconflow('gpt-3.5-turbo') :
-                openai('@cf/qwen/qwen1.5-14b-chat-awq')
+                openai('@cf/qwen/qwen1.5-14b-chat-awq') // Default model
     );
 
     const tonePrompt = (
@@ -261,8 +237,7 @@ ${tonePrompt}
 重要提醒：你的输出仅包含【JSON格式】，不允许出现其他字符或注释。对于json格式中双引号里的内容，请勿再次使用双引号，只允许使用单引号。`,
         },
       ],
-      maxTokens: 4096, // Reduced maxTokens slightly as a potential optimization, adjust if needed
-      // temperature: 0,
+      maxTokens: 4096,
       topP: 0.1,
     });
 
@@ -355,7 +330,6 @@ ${tonePrompt}
       }
     }
 
-
     // Convert to 25-point scale and round to one decimal place
     let score = Number((totalScore / 100 * 25).toFixed(1));
 
@@ -400,6 +374,226 @@ ${tonePrompt}
     throw error;
   }
 }
+
+// Define the expected top-level keys in the JSON output for upgradation
+const UPGRADATION_SECTIONS = [
+  "词汇",
+  "词组",
+  "句式",
+  "细节描写"
+];
+
+/**
+ * Rewrites the user's essay continuation text to upgrade vocabulary, phrases, sentence structures, and detailed descriptions.
+ * Streams the AI response (expected to be JSON), parses it, generates a Markdown summary, and sends progress updates.
+ * Selects the AI model based on the 'model' parameter.
+ * Note: The 'tone' parameter is included as requested but is not directly used
+ * in the prompt content for the language enhancement suggestions.
+ *
+ * @param originalText The original text prompt (for context).
+ * @param essayText The user's essay continuation text to upgrade.
+ * @param tone The tone parameter (currently not used in the prompt for language enhancement suggestions).
+ * @param model The model parameter ('llama', 'deepseek', 'qwen', 'glm', 'gpt4', or default).
+ * @param enqueue Function to send progress updates via the stream.
+ * @returns A Promise resolving to an object containing the parsed JSON and the generated Markdown content, or null if generation fails.
+ */
+export async function generateUpgradation(
+  originalText: string,
+  essayText: string,
+  tone: string, // Added as requested, but not used in prompt content
+  model: string, // Added as requested
+  enqueue: EnqueueFunction
+): Promise<{ json: any, markdownContent: string } | null> { // Changed return type
+  enqueue({ type: 'progress', message: '正在分析并生成升格建议...' });
+  console.log("Initiating language upgradation...");
+
+  let fullResponseText = ''; // Accumulator for the full AI response text
+  const reportedSections = new Set<string>(); // Track sections already reported via enqueue
+  let markdownContent = ''; // Accumulator for the Markdown content
+
+  try {
+    // Select the AI model based on the model parameter
+    const aiModel = (
+      model === 'llama' ? openai('@cf/meta/llama-4-scout-17b-16e-instruct') :
+        model === 'deepseek' ? deepseek('deepseek-chat') :
+          model === 'qwen' ? siliconflow('Qwen/Qwen3-8B') :
+            model === 'glm' ? siliconflow('THUDM/GLM-Z1-9B-0414') :
+              model === 'gpt4' ? siliconflow('gpt-3.5-turbo') :
+                openai('@cf/qwen/qwen1.5-14b-chat-awq') // Default model
+    );
+
+    console.log("--- Streaming AI response for language upgradation ---");
+
+    const streamResult = await streamText({
+      model: aiModel,
+      messages: [
+        {
+          role: 'system',
+          content: `你是一个专业的英语写作助手，擅长提升文章的词汇、词组、句式和细节描写水平。你的任务是根据用户提供的原文和续写，找出续写中有待提升的词汇、词组和句式，给出升格建议。同时给出该词汇、词组、句式或细节描写的相关解释和例句（句式和细节描写部分可能更侧重说明和升格后的效果）。严格保持原文的故事情节、人物设定、时态和语体风格不变。不要添加、删除或修改任何情节或信息。你的输出只能是以JSON格式展现的升格内容，不允许包含任何其他说明、注释或格式。
+
+请仔细阅读原文，找出有待提升的词汇、词组、句式和细节描写，给出升格建议。每类给出尽可能多的升格建议（如果原文续写内容足够的话）。严格按照以下JSON格式输出：
+{
+    "词汇": [
+      { "原词": "energetic", "升格": "vigorous", "英文释义": "full of energy, strength, and enthusiasm. It describes something done with a lot of force, effort, or intensity.", "简明中文释义": "<adj.> 充满活力的；精力充沛的", "英文例句": "Theodore Roosevelt was a strong and vigorous politician." },
+      { "原词": "happy", "升格": "elated", "英文释义": "in high spirits; jubilant or exultant.", "简明中文释义": "<adj.> 兴高采烈的；欢欣鼓舞的", "英文例句": "She was elated at the prospect of a holiday." }
+      // 其他词汇同理
+    ],
+    "词组": [
+      { "原词组": "walk quickly", "升格": "stride purposefully", "英文释义": "to walk with long steps in a particular direction with a clear intention.", "简明中文释义": "大步流星地走；坚定地走", "英文例句": "He watched her stride purposefully towards the manager's office." },
+      { "原词组": "think about", "升格": "contemplate", "英文释义": "to think about something for a long time or in a serious way.", "简明中文释义": "沉思；深思熟虑", "英文例句": "He sat on the beach contemplating the meaning of life." }
+      // 其他词组同理
+    ],
+    "句式": [
+      { "原句": "He was so tired that he could not move.", "升格句": "So tired was he that he could not move.", "说明": "使用倒装句式，增强语气。", "英文例句": "So difficult was the exam that only 10% of the students passed." },
+      { "原句": "The rain fell heavily.", "升格句": "Down came the heavy rain.", "说明": "使用副词开头的倒装句，使描述更生动。", "英文例句": "Out of the house rushed the children." }
+      // 其他句式同理
+    ],
+     "细节描写": [
+      { "原描写": "The room was dark.", "升格描写": "The room was cloaked in a thick, oppressive darkness, where shadows seemed to writhe in the corners.", "说明": "增加了比喻和更具感**彩的词汇，增强了黑暗的压抑感。", "英文例句": "The ancient forest was cloaked in an eerie silence." },
+      { "原描写": "She felt sad.", "升格描写": "A heavy cloak of sorrow settled upon her shoulders, weighing down her spirit with each passing moment.", "说明": "将抽象的悲伤具象化，使用比喻使其更生动。", "英文例句": "A sense of dread settled upon him as he entered the old house." }
+      // 其他细节描写同理
+    ]
+}
+
+原文：
+${originalText}
+
+待升格的续写：
+${essayText}
+
+请提供升格后的JSON内容：`,
+        },
+      ],
+      maxTokens: 4096, // Adjust based on expected output length
+      temperature: 0.5, // Allow some creativity in word choice, but not too much
+      topP: 0.9, // Broaden sampling slightly for varied word choices
+    });
+
+    // Iterate over the stream parts
+    for await (const part of streamResult.fullStream) {
+      if (part.type === 'text-delta' && part.textDelta) {
+        const chunk = part.textDelta;
+        // Write the chunk directly to the console's standard output for debugging
+        process.stdout.write(chunk);
+        // Append the chunk to the full response text
+        fullResponseText += chunk;
+
+        // --- Check for new section keys ---
+        for (const section of UPGRADATION_SECTIONS) {
+          // Check if section hasn't been reported yet AND appears in the text
+          // Look for the section name enclosed in quotes followed by a colon and potentially whitespace
+          const searchString = `"${section}":`;
+           if (!reportedSections.has(section) && fullResponseText.includes(searchString)) {
+            // Send enqueue message for this section
+            enqueue({ type: 'progress', message: `正在生成: ${section} 建议` });
+            // Mark this section as reported
+            reportedSections.add(section);
+          }
+        }
+        // --- End check for new section keys ---
+      }
+    }
+
+    console.log("\n--- End of AI response stream for language upgradation ---");
+
+    // Check if we received any response
+    if (!fullResponseText.trim()) {
+      console.warn("AI response for language upgradation was empty or only whitespace.");
+      enqueue({ type: 'error', message: '未能生成升格建议：AI返回为空' });
+      // Return null as the expected JSON was not received
+      return null;
+    }
+
+    // Parse the accumulated JSON string
+    const start = fullResponseText.indexOf('{');
+    const end = fullResponseText.lastIndexOf('}');
+    if (start === -1 || end === -1 || start >= end) {
+      console.error("Invalid JSON structure received for upgradation:", fullResponseText);
+      enqueue({ type: 'error', message: '未能生成升格建议：AI返回非JSON格式' });
+      // Return null if JSON structure is invalid
+      return null;
+    }
+    const jsonString = fullResponseText.substring(start, end + 1);
+
+    let json: any;
+    try {
+      json = parse(jsonString); // Use best-effort parser
+    } catch (parseError) {
+      console.error("Failed to parse JSON for upgradation:", parseError);
+      console.error("Received JSON string:", jsonString);
+      enqueue({ type: 'error', message: `未能生成升格建议：解析JSON失败: ${parseError}` });
+      // Return null if JSON parsing fails
+      return null;
+    }
+
+    // Optional: Add checks to ensure the parsed JSON has the expected top-level keys
+    const hasExpectedKeys = UPGRADATION_SECTIONS.every(section => json && typeof json === 'object' && json[section] !== undefined);
+    if (!hasExpectedKeys) {
+         console.warn("Parsed JSON missing expected keys for upgradation:", json);
+         // Log a warning but proceed with generating markdown from available data
+         enqueue({ type: 'warning', message: '升格建议JSON结构不完整或缺少部分类别' });
+    }
+
+    // --- Generate Markdown Content ---
+    markdownContent += '# 语言升格建议\n\n';
+
+    for (const section of UPGRADATION_SECTIONS) {
+        const items = json?.[section]; // Use optional chaining in case the section is missing
+
+        if (Array.isArray(items) && items.length > 0) {
+            markdownContent += `## ${section}升格\n\n`;
+
+            items.forEach((item, index) => {
+                markdownContent += `- **建议 ${index + 1}:**\n`;
+
+                if (section === "词汇") {
+                    markdownContent += `  - **原词:** ${item.原词 || 'N/A'}\n`;
+                    markdownContent += `  - **升格:** ${item.升格 || 'N/A'}\n`;
+                    if (item.英文释义) markdownContent += `  > **英文释义:** ${item.英文释义}\n`;
+                    if (item.简明中文释义) markdownContent += `  > **简明中文释义:** ${item.简明中文释义}\n`;
+                    if (item.英文例句) markdownContent += `  > **英文例句:** ${item.英文例句}\n`;
+                } else if (section === "词组") {
+                    markdownContent += `  - **原词组:** ${item.原词组 || 'N/A'}\n`;
+                    markdownContent += `  - **升格:** ${item.升格 || 'N/A'}\n`;
+                     if (item.英文释义) markdownContent += `  > **英文释义:** ${item.英文释义}\n`;
+                    if (item.简明中文释义) markdownContent += `  > **简明中文释义:** ${item.简明中文释义}\n`;
+                    if (item.英文例句) markdownContent += `  > **英文例句:** ${item.英文例句}\n`;
+                } else if (section === "句式") {
+                    markdownContent += `  - **原句:** ${item.原句 || 'N/A'}\n`;
+                    markdownContent += `  - **升格句:** ${item.升格句 || 'N/A'}\n`;
+                    if (item.说明) markdownContent += `  > **说明:** ${item.说明}\n`;
+                    if (item.英文例句) markdownContent += `  > **英文例句:** ${item.英文例句}\n`;
+                } else if (section === "细节描写") {
+                     markdownContent += `  - **原描写:** ${item.原描写 || 'N/A'}\n`;
+                    markdownContent += `  - **升格描写:** ${item.升格描写 || 'N/A'}\n`;
+                    if (item.说明) markdownContent += `  > **说明:** ${item.说明}\n`;
+                     // Note: Details section example didn't have English example, but adding it just in case AI provides it
+                    if (item.英文例句) markdownContent += `  > **英文例句:** ${item.英文例句}\n`;
+                }
+                markdownContent += '\n'; // Add a newline after each item
+            });
+            markdownContent += '---\n\n'; // Add a horizontal rule after each section
+        }
+    }
+    // --- End Generate Markdown Content ---
+
+
+    console.log("Successfully generated and parsed upgradation suggestions.");
+    // Return both the parsed JSON and the generated Markdown
+    return { json, markdownContent };
+
+  } catch (error) {
+    console.error("Error generating language upgradation:", error);
+    // Ensure an error message is sent via enqueue if not already sent by specific catches
+    // Simple check to avoid duplicate error messages - might need more robust logic
+    if (!fullResponseText.includes('"type":"error"')) {
+       enqueue({ type: 'error', message: '生成升格建议失败', error: String(error) });
+    }
+    // Return null on error
+    return null;
+  }
+}
+
 
 // --- generateTitle and generateIcon remain unchanged ---
 
