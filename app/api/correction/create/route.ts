@@ -2,18 +2,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { CorrectionUtil } from "@/utils/corrections";
 import { auth } from "@/auth";
-// Remove these imports as they are now in the utility file
-// import { createOpenAI } from '@ai-sdk/openai';
-// import { generateText } from 'ai';
-// import { parse } from 'best-effort-json-parser';
+import { checkModelAvaliability } from "@/utils/models";
 
 // Import the new utility functions
-import { generateScore, generateTitle, generateIcon } from "@/utils/generate-continuation";
-
-// Remove the AI model instances from here
-// const openai = createOpenAI({ ... });
-// const deepseek = createOpenAI({ ... });
-
+import { generateScore } from "@/utils/generate-continuation";
+import { generateTitle, generateIcon } from "@/utils/generate-metadata";
 
 export async function POST(req: NextRequest) {
   try {
@@ -28,7 +21,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: "缺少必要参数" }, { status: 400 });
     }
     // 校验 model
-    if (!['llama', 'deepseek', 'qwen', 'glm', 'gpt4'].includes(body.model)) {
+    if (checkModelAvaliability(body.model)) {
       return NextResponse.json({ success: false, message: "无效的模型参数" }, { status: 400 });
     }
     // 校验 essayType

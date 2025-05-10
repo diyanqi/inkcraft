@@ -1,4 +1,3 @@
-
 import { createOpenAI } from '@ai-sdk/openai';
 
 // Define AI model instances - these are shared
@@ -26,3 +25,24 @@ export const gpt = createOpenAI({
   compatibility: 'compatible',
 });
 
+const modelMapping = {
+  'llama': openai('@cf/meta/llama-4-scout-17b-16e-instruct'),
+  'deepseek': deepseek('deepseek-chat'),
+  'qwen': siliconflow('Qwen/Qwen3-8B'),
+  'glm': siliconflow('THUDM/GLM-Z1-9B-0414'),
+  'gpt4': siliconflow('gpt-3.5-turbo'),
+}
+
+export function checkModelAvaliability(modelName: string) {
+  return modelName in modelMapping;
+}
+
+export function getModelByName(modelName: string) {
+  if (checkModelAvaliability(modelName)) {
+    return modelMapping[modelName as keyof typeof modelMapping];
+  } else {
+    return openai('@cf/qwen/qwen1.5-14b-chat-awq'); // Default model
+  }
+}
+
+export const fastModel = openai('@cf/meta/llama-3.1-8b-instruct-fast');
