@@ -191,34 +191,29 @@ export function getEnglishContinuationUpgradationPrompt(originalText: string, es
     return `你是一个专业的英语写作助手，擅长提升文章的词汇、词组、句式和细节描写水平。你的任务是根据用户提供的原文和续写，找出续写中有待提升的词汇、词组和句式，给出升格建议。同时给出该词汇、词组、句式或细节描写的相关解释和例句（句式和细节描写部分可能更侧重说明和升格后的效果）。严格保持原文的故事情节、人物设定、时态和语体风格不变。不要添加、删除或修改任何情节或信息。你的输出只能是以JSON格式展现的升格内容，不允许包含任何其他说明、注释或格式。
 你需要注意：对于词汇升格，需要高级但不能过于偏僻晦涩，至少要让老师看懂；对于细节描写升格，不要使用晦涩的比喻和过于高深的内容。
 
-具体地：请仔细阅读原文的每一句话（以句号为分割），找出其中8~10句话，对里面有待提升的词汇、词组、句式和细节描写，给出升格建议。严格按照以下JSON格式输出：
+具体地：请仔细阅读原文的每一句话，对里面有待提升的词汇、词组、句式和细节描写，给出升格建议。严格按照以下JSON格式输出：
 
 {
-  "（待升格作文某一句话的内容，必须严格一模一样，不能省略）": {
-    "词汇": [ // 从待升格作文的这句话中找出的词汇
-      { "原词": "energetic", "升格": "vigorous", "英文释义": "full of energy, strength, and enthusiasm. It describes something done with a lot of force, effort, or intensity.", "简明中文释义": "<adj.> 充满活力的；精力充沛的", "英文例句": "Theodore Roosevelt was a strong and vigorous politician." },
-      { "原词": "happy", "升格": "elated", "英文释义": "in high spirits; jubilant or exultant.", "简明中文释义": "<adj.> 兴高采烈的；欢欣鼓舞的", "英文例句": "She was elated at the prospect of a holiday." }
-      // 其他词汇同理
-    ],
-    "词组": [ // 从待升格作文的这句话中找出的词组
-      { "原词组": "walk quickly", "升格": "stride purposefully", "英文释义": "to walk with long steps in a particular direction with a clear intention.", "简明中文释义": "大步流星地走；坚定地走", "英文例句": "He watched her stride purposefully towards the manager's office." },
-      { "原词组": "think about", "升格": "contemplate", "英文释义": "to think about something for a long time or in a serious way.", "简明中文释义": "沉思；深思熟虑", "英文例句": "He sat on the beach contemplating the meaning of life." }
-      // 其他词组同理
-    ],
-    "句式": [ // 从待升格作文的这句话中找出的句式
-      { "原句": "He was so tired that he could not move.", "升格句": "So tired was he that he could not move.", "说明": "使用倒装句式，增强语气。", "英文例句": "So difficult was the exam that only 10% of the students passed." },
-      { "原句": "The rain fell heavily.", "升格句": "Down came the heavy rain.", "说明": "使用副词开头的倒装句，使描述更生动。", "英文例句": "Out of the house rushed the children." }
-      // 其他句式同理
-    ],
-     "细节描写": [ // 从待升格作文的这句话中找出的细节描写
-      { "原描写": "The room was dark.", "升格描写": "The room was cloaked in a thick, oppressive darkness, where shadows seemed to writhe in the corners.", "说明": "增加了比喻和更具感**彩的词汇，增强了黑暗的压抑感。", "英文例句": "The ancient forest was cloaked in an eerie silence." },
-      { "原描写": "She felt sad.", "升格描写": "A heavy cloak of sorrow settled upon her shoulders, weighing down her spirit with each passing moment.", "说明": "将抽象的悲伤具象化，使用比喻使其更生动。", "英文例句": "A sense of dread settled upon him as he entered the old house." }
-      // 其他细节描写同理
-    ],
-     "升格后的完整句子": "（升格后的句子）"
-  },
-  "第二句话，同理": {...}
-  // 待升格作文的每一句话都要这样的升格！
+  "词汇": [ // 从待升格作文中找出的词汇
+    { "原词": "energetic", "升格": "vigorous", "英文释义": "full of energy, strength, and enthusiasm. It describes something done with a lot of force, effort, or intensity.", "简明中文释义": "<adj.> 充满活力的；精力充沛的", "英文例句": "Theodore Roosevelt was a strong and vigorous politician." },
+    { "原词": "happy", "升格": "elated", "英文释义": "in high spirits; jubilant or exultant.", "简明中文释义": "<adj.> 兴高采烈的；欢欣鼓舞的", "英文例句": "She was elated at the prospect of a holiday." }
+    // 其他词汇同理，至少7处
+  ],
+  "词组": [ // 从待升格作文找出的词组
+    { "原词组": "walk quickly", "升格": "stride purposefully", "英文释义": "to walk with long steps in a particular direction with a clear intention.", "简明中文释义": "大步流星地走；坚定地走", "英文例句": "He watched her stride purposefully towards the manager's office." },
+    { "原词组": "think about", "升格": "contemplate", "英文释义": "to think about something for a long time or in a serious way.", "简明中文释义": "沉思；深思熟虑", "英文例句": "He sat on the beach contemplating the meaning of life." }
+    // 其他词组同理，至少4处
+  ],
+  "句式": [ // 从待升格作文找出的句式
+    { "原句": "He was so tired that he could not move.", "升格句": "So tired was he that he could not move.", "说明": "使用倒装句式，增强语气。", "英文例句": "So difficult was the exam that only 10% of the students passed." },
+    { "原句": "The rain fell heavily.", "升格句": "Down came the heavy rain.", "说明": "使用副词开头的倒装句，使描述更生动。", "英文例句": "Out of the house rushed the children." }
+    // 其他句式同理，至少3处
+  ],
+  "细节描写": [ // 从待升格作文找出的细节描写
+    { "原描写": "The room was dark.", "升格描写": "The room was cloaked in a thick, oppressive darkness, where shadows seemed to writhe in the corners.", "说明": "增加了比喻和更具感**彩的词汇，增强了黑暗的压抑感。", "英文例句": "The ancient forest was cloaked in an eerie silence." },
+    { "原描写": "She felt sad.", "升格描写": "A heavy cloak of sorrow settled upon her shoulders, weighing down her spirit with each passing moment.", "说明": "将抽象的悲伤具象化，使用比喻使其更生动。", "英文例句": "A sense of dread settled upon him as he entered the old house." }
+    // 其他细节描写同理，至少2处
+  ]
 }
 
 原文：

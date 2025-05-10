@@ -263,71 +263,49 @@ export async function generateUpgradation(
     markdownContent += '# 语言升格建议\n\n';
 
     if (typeof json === 'object' && json !== null && !Array.isArray(json)) {
-      for (const originalSentence in json) {
-        if (Object.prototype.hasOwnProperty.call(json, originalSentence)) {
-          const sentenceData = json[originalSentence];
+      for (const sectionName of UPGRADATION_SECTIONS) {
+        const items = json[sectionName];
+        if (Array.isArray(items) && items.length > 0) {
+          markdownContent += `## ${sectionName}升格\n\n`;
+          
+          items.forEach((item: any) => {
+            if (typeof item !== 'object' || item === null) return;
 
-          if (typeof sentenceData !== 'object' || sentenceData === null) {
-            console.warn(`Data for sentence "${originalSentence}" is not an object:`, sentenceData);
-            markdownContent += `_处理原文片段 "${originalSentence}" 时遇到格式问题。_\n\n`;
-            continue;
-          }
-
-          markdownContent += `## 原文片段：\`${originalSentence}\`\n\n`;
-
-          for (const sectionName of UPGRADATION_SECTIONS) { // UPGRADATION_SECTIONS = ["词汇", "词组", "句式", "细节描写"]
-            const items = sentenceData[sectionName];
-            if (Array.isArray(items) && items.length > 0) {
-              markdownContent += `### ${sectionName}升格\n\n`;
-              items.forEach((item: any) => {
-                if (typeof item !== 'object' || item === null) return; // Skip malformed items
-
-                switch (sectionName) {
-                  case "词汇":
-                    markdownContent += `- **原词**: \`${item.原词 || 'N/A'}\` -> **升格**: \`${item.升格 || 'N/A'}\`\n`;
-                    if (item.英文释义) markdownContent += `  - **英文释义**: ${item.英文释义}\n`;
-                    if (item.简明中文释义) markdownContent += `  - **简明中文释义**: ${item.简明中文释义}\n`;
-                    if (item.英文例句) markdownContent += `  - **英文例句**: _${item.英文例句}_\n`;
-                    break;
-                  case "词组":
-                    markdownContent += `- **原词组**: \`${item.原词组 || 'N/A'}\` -> **升格**: \`${item.升格 || 'N/A'}\`\n`;
-                    if (item.英文释义) markdownContent += `  - **英文释义**: ${item.英文释义}\n`;
-                    if (item.简明中文释义) markdownContent += `  - **简明中文释义**: ${item.简明中文释义}\n`;
-                    if (item.英文例句) markdownContent += `  - **英文例句**: _${item.英文例句}_\n`;
-                    break;
-                  case "句式":
-                    markdownContent += `- **原句**: \`${item.原句 || 'N/A'}\`\n`;
-                    markdownContent += `  - **升格句**: \`${item.升格句 || 'N/A'}\`\n`;
-                    if (item.说明) markdownContent += `  - **说明**: ${item.说明}\n`;
-                    if (item.英文例句) markdownContent += `  - **英文例句**: _${item.英文例句}_\n`;
-                    break;
-                  case "细节描写":
-                    markdownContent += `- **原描写**: \`${item.原描写 || 'N/A'}\`\n`;
-                    markdownContent += `  - **升格描写**: \`${item.升格描写 || 'N/A'}\`\n`;
-                    if (item.说明) markdownContent += `  - **说明**: ${item.说明}\n`;
-                    if (item.英文例句) markdownContent += `  - **英文例句**: _${item.英文例句}_\n`;
-                    break;
-                }
-                markdownContent += '\n'; // Add a newline after each item's details
-              });
+            switch (sectionName) {
+              case "词汇":
+                markdownContent += `- **原词**: \`${item.原词 || 'N/A'}\` -> **升格**: \`${item.升格 || 'N/A'}\`\n`;
+                if (item.英文释义) markdownContent += `  - **英文释义**: ${item.英文释义}\n`;
+                if (item.简明中文释义) markdownContent += `  - **简明中文释义**: ${item.简明中文释义}\n`;
+                if (item.英文例句) markdownContent += `  - **英文例句**: _${item.英文例句}_\n`;
+                break;
+              case "词组":
+                markdownContent += `- **原词组**: \`${item.原词组 || 'N/A'}\` -> **升格**: \`${item.升格 || 'N/A'}\`\n`;
+                if (item.英文释义) markdownContent += `  - **英文释义**: ${item.英文释义}\n`;
+                if (item.简明中文释义) markdownContent += `  - **简明中文释义**: ${item.简明中文释义}\n`;
+                if (item.英文例句) markdownContent += `  - **英文例句**: _${item.英文例句}_\n`;
+                break;
+              case "句式":
+                markdownContent += `- **原句**: \`${item.原句 || 'N/A'}\`\n`;
+                markdownContent += `  - **升格句**: \`${item.升格句 || 'N/A'}\`\n`;
+                if (item.说明) markdownContent += `  - **说明**: ${item.说明}\n`;
+                if (item.英文例句) markdownContent += `  - **英文例句**: _${item.英文例句}_\n`;
+                break;
+              case "细节描写":
+                markdownContent += `- **原描写**: \`${item.原描写 || 'N/A'}\`\n`;
+                markdownContent += `  - **升格描写**: \`${item.升格描写 || 'N/A'}\`\n`;
+                if (item.说明) markdownContent += `  - **说明**: ${item.说明}\n`;
+                if (item.英文例句) markdownContent += `  - **英文例句**: _${item.英文例句}_\n`;
+                break;
             }
-          }
-
-          if (sentenceData.升格后的完整句子) {
-            markdownContent += `### 升格后的完整句子\n`;
-            markdownContent += `> ${sentenceData.升格后的完整句子}\n\n`;
-          }
-          markdownContent += '---\n\n'; // Separator between different original sentences
+            markdownContent += '\n';
+          });
+          markdownContent += '---\n\n';
         }
       }
     } else {
-      console.error("Parsed JSON for upgradation is not the expected object structure (keys as original sentences):", json);
+      console.error("Parsed JSON for upgradation is not the expected object structure:", json);
       enqueue({ type: 'error', message: '未能正确解析升格建议：AI返回数据结构与预期不符。' });
-      markdownContent += "_错误：AI返回的升格建议数据结构与预期不符（期望一个以原句为键的对象），无法完整展示。_\n\n";
-      // Optionally, include raw JSON in markdown for debugging if it's small enough
-      // if (jsonString.length < 2000) { // Avoid overly long raw dumps
-      //   markdownContent += "```json\n" + JSON.stringify(json, null, 2) + "\n```\n";
-      // }
+      markdownContent += "_错误：AI返回的升格建议数据结构与预期不符，无法完整展示。_\n\n";
     }
     // --- End Generate Markdown Content ---
 
