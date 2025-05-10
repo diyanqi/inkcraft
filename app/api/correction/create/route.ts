@@ -3,10 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { CorrectionUtil } from "@/utils/corrections";
 import { auth } from "@/auth";
 import { checkModelAvaliability } from "@/utils/models";
+import { checkToneAvaliability } from "@/utils/tone-prompt";
 
 // Import the new utility functions
-import { generateScore } from "@/utils/generate-continuation";
+import { generateScore, generateUpgradation } from "@/utils/generate-continuation";
 import { generateTitle, generateIcon } from "@/utils/generate-metadata";
+
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,7 +23,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: "缺少必要参数" }, { status: 400 });
     }
     // 校验 model
-    if (checkModelAvaliability(body.model)) {
+    if (!checkModelAvaliability(body.model)) {
       return NextResponse.json({ success: false, message: "无效的模型参数" }, { status: 400 });
     }
     // 校验 essayType
@@ -29,15 +31,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: "无效的作文类型参数" }, { status: 400 });
     }
     // 校验 tone
-    if (!['default', 'serious', 'humorous', 'sharp'].includes(body.tone)) {
-      return NextResponse.json({ success: false, message: "无效的风格参数" }, { status: 400 });
+    if (!checkToneAvaliability(body.tone)) {
+      return NextResponse.json({ success: false, message: "无效的语气参数" }, { status: 400 });
     }
 
     if (body.essayType === 'gaokao-english-continuation') {
       // content will now be populated by generateScore
       let content = "";
       let score = 0; // Initialize score
-
+      let upgradation = "";
       // Use ReadableStream directly
       const stream = new ReadableStream({
         async start(controller) {
@@ -61,9 +63,20 @@ export async function POST(req: NextRequest) {
             score = scoreResult.score;
             content = scoreResult.content;
 
+            // 生成升格建议
+            const upgradationResult = await generateUpgradation(
+              body.originalText,
+              body.essayText,
+              body.tone,
+              body.model,
+              enqueue
+            );
+            upgradation = upgradationResult?.markdownContent || "";
+            content += '\n\n' + upgradation;
+            
             // Use fastModel definition from the utility file indirectly via the functions
             // Progress message updated to reflect title generation
-            enqueue({ type: 'progress', message: '评分完成，正在生成标题...' });
+            enqueue({ type: 'progress', message: '升格完成，正在生成标题...' });
 
             let title = "";
             if (body.title && body.title.length > 0) {
@@ -79,7 +92,7 @@ export async function POST(req: NextRequest) {
             // Call the utility function for icon
             const icon = await generateIcon(body.originalText, enqueue);
 
-            const testData = {
+            const correctionData = {
               title,
               icon,
               model: body.model || "gpt-4", // Keep the original model from body here
@@ -88,7 +101,7 @@ export async function POST(req: NextRequest) {
               user_email: session.user!.email || "",
             };
             const util = new CorrectionUtil();
-            const result = await util.create(testData);
+            const result = await util.create(correctionData);
 
             // Send completion message
             enqueue({ type: 'complete', id: result.id });

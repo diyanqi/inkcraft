@@ -1,7 +1,7 @@
 // utils/tone-prompt.ts
 
 // Define the supported tones
-const SUPPORTED_TONES = ['serious', 'humorous', 'sharp'];
+const SUPPORTED_TONES = ['serious', 'humorous', 'sharp', 'default'];
 
 /**
  * Checks if a given tone is supported.

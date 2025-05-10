@@ -191,10 +191,10 @@ export function getEnglishContinuationUpgradationPrompt(originalText: string, es
     return `你是一个专业的英语写作助手，擅长提升文章的词汇、词组、句式和细节描写水平。你的任务是根据用户提供的原文和续写，找出续写中有待提升的词汇、词组和句式，给出升格建议。同时给出该词汇、词组、句式或细节描写的相关解释和例句（句式和细节描写部分可能更侧重说明和升格后的效果）。严格保持原文的故事情节、人物设定、时态和语体风格不变。不要添加、删除或修改任何情节或信息。你的输出只能是以JSON格式展现的升格内容，不允许包含任何其他说明、注释或格式。
 你需要注意：对于词汇升格，需要高级但不能过于偏僻晦涩，至少要让老师看懂；对于细节描写升格，不要使用晦涩的比喻和过于高深的内容。
 
-具体地：请仔细阅读原文的每一句话（以句号为分割），对于每一句话，都要找出有待提升的词汇、词组、句式和细节描写，给出升格建议。严格按照以下JSON格式输出：
+具体地：请仔细阅读原文的每一句话（以句号为分割），找出其中8~10句话，对里面有待提升的词汇、词组、句式和细节描写，给出升格建议。严格按照以下JSON格式输出：
 
-[
-  "（待升格作文第一句话的内容，必须严格一模一样）": {
+{
+  "（待升格作文某一句话的内容，必须严格一模一样，不能省略）": {
     "词汇": [ // 从待升格作文的这句话中找出的词汇
       { "原词": "energetic", "升格": "vigorous", "英文释义": "full of energy, strength, and enthusiasm. It describes something done with a lot of force, effort, or intensity.", "简明中文释义": "<adj.> 充满活力的；精力充沛的", "英文例句": "Theodore Roosevelt was a strong and vigorous politician." },
       { "原词": "happy", "升格": "elated", "英文释义": "in high spirits; jubilant or exultant.", "简明中文释义": "<adj.> 兴高采烈的；欢欣鼓舞的", "英文例句": "She was elated at the prospect of a holiday." }
@@ -219,7 +219,7 @@ export function getEnglishContinuationUpgradationPrompt(originalText: string, es
   },
   "第二句话，同理": {...}
   // 待升格作文的每一句话都要这样的升格！
-]
+}
 
 原文：
 ${originalText}

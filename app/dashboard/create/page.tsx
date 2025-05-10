@@ -96,7 +96,7 @@ function ConfirmCorrectionDialog({
             "gpt4": "GPT-4o",
             "llama": "Meta Llama",
             "deepseek": "Deepseek-v3",
-            "gemini": "Google Gemini",
+            "gemini": "Google Gemini 2",
             "qwen": "通义千问",
             "glm": "智谱清言",
         };
@@ -611,6 +611,7 @@ export default function CreatePage() {
                                                 <SelectItem value="llama">Llama 3.3</SelectItem>
                                                 <SelectItem value="qwen">通义千问 3</SelectItem>
                                                 <SelectItem value="glm">智谱清言 4</SelectItem>
+                                                <SelectItem value="gemini">Google Gemini 2</SelectItem>
                                                 {/* Other items */}
                                             </SelectContent>
                                         </Select>

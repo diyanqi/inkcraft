@@ -25,12 +25,20 @@ export const gpt = createOpenAI({
   compatibility: 'compatible',
 });
 
+export const gemini = createOpenAI({
+  baseURL: process.env.GOOGLE_API_BASEURL || '',
+  apiKey: process.env.GOOGLE_API_APIKEY || '',
+  compatibility: 'compatible',
+});
+
 const modelMapping = {
   'llama': openai('@cf/meta/llama-4-scout-17b-16e-instruct'),
   'deepseek': deepseek('deepseek-chat'),
   'qwen': siliconflow('Qwen/Qwen3-8B'),
   'glm': siliconflow('THUDM/GLM-Z1-9B-0414'),
   'gpt4': siliconflow('gpt-3.5-turbo'),
+  // 'glm': glm('glm-4-flash-250414'),
+  'gemini': gemini('gemini-2.0-flash'),
 }
 
 export function checkModelAvaliability(modelName: string) {
