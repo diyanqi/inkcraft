@@ -52,6 +52,7 @@ import imageCompression from 'browser-image-compression'
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { Progress } from "@/components/ui/progress" // Added
 import { Label } from "@/components/ui/label" // Added
+import { inngest } from "@/lib/inngest"
 
 // Removed crop related imports and functions
 
@@ -328,112 +329,45 @@ export default function CreatePage() {
     const startCorrectionProcess = async () => {
         if (!pendingFormData) {
             toast.error("无法开始批改：缺少表单数据。");
-            setIsConfirmDialogOpen(false); // Close dialog if data is missing
+            setIsConfirmDialogOpen(false);
             return;
         }
 
         setIsCorrectionLoading(true);
-        setCorrectionProgress(5); // Initial progress
-        setCorrectionProgressMessage("正在初始化批改任务...");
+        setCorrectionProgress(5);
+        setCorrectionProgressMessage("正在提交批改任务...");
 
         try {
-            const res = await fetch('/api/correction/create', {
+            // 发送到后端 API
+            const response = await fetch('/api/correction/create', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(pendingFormData) // Use stored data
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(pendingFormData)
             });
 
-            if (!res.body) {
-                throw new Error('服务器响应体为空');
-            }
+            const data = await response.json();
 
-            const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
-            let accumulatedData = '';
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                accumulatedData += value;
-                let lines = accumulatedData.split('\n');
-                accumulatedData = lines.pop() || ''; // Keep incomplete line
-
-                for (const line of lines) {
-                    if (!line.trim()) continue;
-                    let jsonString = line.startsWith('data: ') ? line.substring(5) : line;
-
-                    try {
-                        const message = JSON.parse(jsonString);
-                        switch (message.type) {
-                            case 'progress':
-                                // Update progress based on message (simple estimation)
-                                setCorrectionProgressMessage(message.message);
-                                // Example: Assign progress values based on keywords
-                                if (message.message.includes("分析")) setCorrectionProgress(prev => Math.max(prev, 30));
-                                else if (message.message.includes("生成")) setCorrectionProgress(prev => Math.max(prev, 60));
-                                else if (message.message.includes("评分") || message.message.includes("整理")) setCorrectionProgress(prev => Math.max(prev, 85));
-                                else setCorrectionProgress(prev => Math.min(prev + 5, 95)); // Generic increment
-
-                                // toast.info(message.message); // REMOVED intermediate toast
-                                break;
-                            case 'error':
-                                // Keep error toast
-                                toast.error(`批改出错: ${message.message}`);
-                                setIsConfirmDialogOpen(false); // Close dialog on error
-                                throw new Error(message.message); // Throw to trigger finally block correctly
-                            case 'complete':
-                                if (message.id) {
-                                    setCorrectionProgress(100);
-                                    setCorrectionProgressMessage("批改完成！");
-                                    // Keep final success toast
-                                    toast.success('批改创建成功，正在跳转...');
-                                    // Optional delay before closing dialog and redirecting
-                                    setTimeout(() => {
-                                        setIsConfirmDialogOpen(false);
-                                        router.push(`/dashboard/correction/${message.id}`);
-                                    }, 500); // 0.5s delay
-                                    return; // Exit loop and function
-                                } else {
-                                    toast.error('批改完成但未收到ID，请检查');
-                                    setIsConfirmDialogOpen(false); // Close dialog
-                                }
-                                break;
-                            default:
-                                console.log('Unknown message type:', message);
-                        }
-                    } catch (e) {
-                        console.error('Failed to parse message:', e, 'Line:', line);
-                        // Don't toast for simple parsing errors, might be incomplete stream
-                    }
-                }
-            }
-            // Handle any remaining data (less likely needed with the robust loop)
-            if (accumulatedData.trim()) {
-                console.log("Processing remaining data:", accumulatedData);
-                // Try processing final chunk if any
-            }
-
-        } catch (e) {
-            // Handle fetch errors or errors thrown from stream processing
-            if (e instanceof Error && !e.message.includes('Failed to fetch')) {
-                // Avoid double toasting if already handled in 'error' case
-                // toast.error(`请求出错: ${e.message}`); // Already toasted usually
-            } else if (e instanceof Error && e.message.includes('Failed to fetch')) {
-                toast.error('网络请求失败，请检查连接');
+            if (data.success) {
+                setCorrectionProgress(100);
+                setCorrectionProgressMessage("批改任务已提交！请过三分钟后刷新页面查看结果。");
+                // toast.success('批改任务已提交，正在跳转...');
+                // setTimeout(() => {
+                //     setIsConfirmDialogOpen(false);
+                //     router.push(`/dashboard/correction/${data.id}`);
+                // }, 500);
             } else {
-                toast.error('发生未知错误');
+                throw new Error(data.message || '提交失败');
             }
+        } catch (e) {
             console.error('Correction Process Error:', e);
-            setIsConfirmDialogOpen(false); // Ensure dialog closes on any error
+            toast.error(e instanceof Error ? e.message : '发生未知错误');
+            setIsConfirmDialogOpen(false);
         } finally {
-            // Reset loading and progress only after completion or error
-            // Success case handles its own reset/redirect. Error case should reset here.
-            if (!currentPathname?.includes('/dashboard/correction/')) { // Use currentPathname here
+            if (!currentPathname?.includes('/dashboard/correction/')) {
                 setIsCorrectionLoading(false);
-                // Optional: reset progress if you want to clear it on error even if dialog closes
-                // setCorrectionProgress(0);
-                // setCorrectionProgressMessage("");
-                setPendingFormData(null); // Clear pending data after attempt (success or failure)
+                setPendingFormData(null);
             }
         }
     };

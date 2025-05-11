@@ -1,24 +1,15 @@
 import { generateText } from "ai";
 import { fastModel } from "./models";
 
-// Helper type for the enqueue function
-type EnqueueFunction = (data: any) => void;
-
 /**
  * Generates a title for the essay continuation based on the original text.
  * @param originalText The original text prompt.
- * @param enqueue Function to send progress updates via the stream.
  * @returns The generated title string.
  */
 export async function generateTitle(
-    originalText: string,
-    enqueue: EnqueueFunction
+    originalText: string
   ): Promise<string> {
-    enqueue({ type: 'progress', message: '正在生成标题...' });
-  
     try {
-      // Use a faster model for title generation
-  
       const { text: titleResponse } = await generateText({
         model: fastModel,
         messages: [
@@ -38,7 +29,6 @@ export async function generateTitle(
   
     } catch (error) {
       console.error("Error generating title:", error);
-      enqueue({ type: 'error', message: '生成标题失败', error: String(error) });
       throw error; // Re-throw
     }
   }
@@ -46,15 +36,11 @@ export async function generateTitle(
   /**
    * Generates an emoji icon for the essay continuation based on the original text.
    * @param originalText The original text prompt.
-   * @param enqueue Function to send progress updates via the stream.
    * @returns The generated emoji icon string.
    */
   export async function generateIcon(
-    originalText: string,
-    enqueue: EnqueueFunction
+    originalText: string
   ): Promise<string> {
-    enqueue({ type: 'progress', message: '正在生成图标...' });
-  
     try {
       const { text: icon } = await generateText({
         model: fastModel,
@@ -86,7 +72,6 @@ export async function generateTitle(
   
     } catch (error) {
       console.error("Error generating icon:", error);
-      enqueue({ type: 'error', message: '生成图标失败', error: String(error) });
       // Return a default icon on error
       return "📄";
     }

@@ -4,40 +4,32 @@ import { parse } from 'best-effort-json-parser';
 // Import the defined models
 import { getModelByName } from './models';
 // Import tone utility functions
-import { getTonePrompt } from './tone-prompt'; // Import getTonePrompt
+import { getTonePrompt } from './tone-prompt';
 import {
   getEnglishContinuationScorePrompt,
   getEnglishContinuationUpgradationPrompt,
   SCORING_CATEGORIES,
-  UPGRADATION_SECTIONS // Assuming UPGRADATION_SECTIONS is ["词汇", "词组", "句式", "细节描写"] in order
+  UPGRADATION_SECTIONS
 } from './correction-prompt';
-
-// Helper type for the enqueue function
-type EnqueueFunction = (data: any) => void;
 
 /**
  * Generates the score and detailed breakdown for the essay continuation.
- * Streams the raw AI response to the console and sends progress updates for scoring categories.
  * @param originalText The original text prompt.
  * @param essayText The user's essay continuation text.
  * @param tone The tone parameter.
  * @param model The model parameter.
- * @param enqueue Function to send progress updates via the stream.
  * @returns An object containing the calculated score and the detailed content string.
  */
 export async function generateScore(
   originalText: string,
   essayText: string,
   tone: string,
-  model: string,
-  enqueue: EnqueueFunction
+  model: string
 ): Promise<{ score: number, content: string }> {
-  enqueue({ type: 'progress', message: '正在生成评分...' });
-  console.log("Initiating score generation..."); // Console log start
+  console.log("Initiating score generation...");
 
   let content = `# 1. 题目\n${originalText}\n# 2. 我的续写\n${essayText}\n`;
-  let fullResponseText = ''; // Accumulator for the full AI response text
-  const reportedCategories = new Set<string>(); // Track categories already reported via enqueue
+  let fullResponseText = '';
 
   try {
     const aiModel = getModelByName(model);
@@ -62,14 +54,6 @@ export async function generateScore(
         const chunk = part.textDelta;
         process.stdout.write(chunk);
         fullResponseText += chunk;
-
-        for (const category of SCORING_CATEGORIES) {
-          const searchString = `"${category}":`;
-          if (!reportedCategories.has(category) && fullResponseText.includes(searchString)) {
-            enqueue({ type: 'progress', message: `正在评分: ${category}` });
-            reportedCategories.add(category);
-          }
-        }
       }
     }
 
@@ -162,36 +146,27 @@ export async function generateScore(
     if (fullResponseText) {
       console.error("Partial AI response received before error:", fullResponseText);
     }
-    enqueue({ type: 'error', message: '生成评分失败', error: String(error) });
     throw error;
   }
 }
 
 /**
  * Rewrites the user's essay continuation text to upgrade vocabulary, phrases, sentence structures, and detailed descriptions.
- * Streams the AI response (expected to be JSON), parses it, generates a Markdown summary, and sends progress updates.
- * Selects the AI model based on the 'model' parameter.
- * Incorporates the 'tone' parameter into the prompt to influence the AI's response style.
- *
  * @param originalText The original text prompt (for context).
  * @param essayText The user's essay continuation text to upgrade.
  * @param tone The tone parameter.
  * @param model The model parameter.
- * @param enqueue Function to send progress updates via the stream.
  * @returns A Promise resolving to an object containing the parsed JSON and the generated Markdown content, or null if generation fails.
  */
 export async function generateUpgradation(
   originalText: string,
   essayText: string,
   tone: string,
-  model: string,
-  enqueue: EnqueueFunction
+  model: string
 ): Promise<{ json: any, markdownContent: string } | null> {
-  enqueue({ type: 'progress', message: '正在分析并生成升格建议...' });
   console.log("Initiating language upgradation...");
 
   let fullResponseText = '';
-  const reportedSections = new Set<string>();
   let markdownContent = '';
 
   try {
@@ -208,7 +183,7 @@ export async function generateUpgradation(
           content: getEnglishContinuationUpgradationPrompt(originalText, essayText, tonePrompt),
         },
       ],
-      maxTokens: 6144, // Increased maxTokens might be needed for detailed JSON
+      maxTokens: 6144,
       temperature: 0.5,
       topP: 0.9,
     });
@@ -218,15 +193,6 @@ export async function generateUpgradation(
         const chunk = part.textDelta;
         process.stdout.write(chunk);
         fullResponseText += chunk;
-
-        // Progress updates based on encountering section keys
-        for (const section of UPGRADATION_SECTIONS) {
-          const searchString = `"${section}":`; // e.g., "词汇":
-          if (!reportedSections.has(section) && fullResponseText.includes(searchString)) {
-            enqueue({ type: 'progress', message: `正在生成: ${section} 建议` });
-            reportedSections.add(section);
-          }
-        }
       }
     }
 
@@ -234,32 +200,27 @@ export async function generateUpgradation(
 
     if (!fullResponseText.trim()) {
       console.warn("AI response for language upgradation was empty or only whitespace.");
-      enqueue({ type: 'error', message: '未能生成升格建议：AI返回为空' });
       return null;
     }
 
-    // Attempt to extract a JSON object from the response
     const startObject = fullResponseText.indexOf('{');
     const endObject = fullResponseText.lastIndexOf('}');
     if (startObject === -1 || endObject === -1 || startObject >= endObject) {
       console.error("Invalid JSON structure received for upgradation (no valid object found):", fullResponseText);
-      enqueue({ type: 'error', message: '未能生成升格建议：AI返回非JSON对象格式' });
       return null;
     }
     const jsonString = fullResponseText.substring(startObject, endObject + 1);
 
     let json: any;
     try {
-      json = JSON.parse(jsonString); // Using standard JSON.parse
+      json = JSON.parse(jsonString);
       console.log('Parsed JSON:', json);
     } catch (parseError) {
       console.error("Failed to parse JSON for upgradation:", parseError);
       console.error("Received JSON string:", jsonString);
-      enqueue({ type: 'error', message: `未能生成升格建议：解析JSON失败: ${parseError}` });
       return null;
     }
 
-    // --- Generate Markdown Content based on the new JSON structure ---
     markdownContent += '# 语言升格建议\n\n';
 
     if (typeof json === 'object' && json !== null && !Array.isArray(json)) {
@@ -304,24 +265,14 @@ export async function generateUpgradation(
       }
     } else {
       console.error("Parsed JSON for upgradation is not the expected object structure:", json);
-      enqueue({ type: 'error', message: '未能正确解析升格建议：AI返回数据结构与预期不符。' });
       markdownContent += "_错误：AI返回的升格建议数据结构与预期不符，无法完整展示。_\n\n";
     }
-    // --- End Generate Markdown Content ---
 
     console.log("Successfully generated and parsed upgradation suggestions.");
     return { json, markdownContent };
 
   } catch (error) {
     console.error("Error generating language upgradation:", error);
-    // Check if the error message is already an enqueue-able object (e.g. from a deeper utility)
-    // This check avoids duplicate error messages if the error object itself is from `enqueue`
-    const isPreEnqueuedError = typeof error === 'object' && error !== null && 'type' in error && error.type === 'error';
-    if (!isPreEnqueuedError && !fullResponseText.includes('"type":"error"')) { // Avoid duplicate if AI already sent an error in stream
-        enqueue({ type: 'error', message: '生成升格建议时发生意外错误', error: String(error) });
-    } else if (isPreEnqueuedError) {
-        enqueue(error); // Forward the pre-enqueued error
-    }
     return null;
   }
 }

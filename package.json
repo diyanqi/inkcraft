@@ -54,6 +54,7 @@
     "hono": "^4.7.7",
     "html2canvas": "^1.4.1",
     "html2pdf.js": "^0.10.3",
+    "inngest": "^3.35.1",
     "jspdf": "^3.0.1",
     "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.487.0",
