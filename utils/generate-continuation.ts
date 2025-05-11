@@ -6,9 +6,9 @@ import { getModelByName } from './models';
 // Import tone utility functions
 import { getTonePrompt } from './tone-prompt';
 import {
+  getEnglishContinuationPurePrompt,
   getEnglishContinuationScorePrompt,
   getEnglishContinuationUpgradationPrompt,
-  SCORING_CATEGORIES,
   UPGRADATION_SECTIONS
 } from './correction-prompt';
 
@@ -273,6 +273,89 @@ export async function generateUpgradation(
 
   } catch (error) {
     console.error("Error generating language upgradation:", error);
+    return null;
+  }
+}
+
+/**
+ * Generates the pure upgradation of the user's essay continuation text.
+ * @param originalText The original text prompt.
+ * @param essayText The user's essay continuation text to upgrade.
+ * @param tone The tone parameter.
+ * @param model The model parameter.
+ * @returns A Promise resolving to an object containing the parsed JSON and the generated Markdown content, or null if generation fails.
+ */
+export async function generatePureUpgradation(
+  originalText: string,
+  essayText: string,
+  tone: string,
+  model: string
+): Promise<{ json: any, markdownContent: string } | null> {
+  console.log("Initiating pure upgradation...");
+
+  let fullResponseText = '';
+  let markdownContent = '';
+
+  try {
+    const aiModel = getModelByName(model);
+    const tonePrompt = getTonePrompt(tone);
+
+    console.log("--- Streaming AI response for pure upgradation ---");
+
+    const streamResult = await streamText({
+      model: aiModel,
+      messages: [
+        {
+          role: 'system',
+          content: getEnglishContinuationPurePrompt(originalText, essayText, tonePrompt),
+        },
+      ],
+      maxTokens: 6144,
+      temperature: 0.5,
+      topP: 0.9,
+    });
+
+    for await (const part of streamResult.fullStream) {
+      if (part.type === 'text-delta' && part.textDelta) {
+        const chunk = part.textDelta;
+        process.stdout.write(chunk);
+        fullResponseText += chunk;
+      }
+    }
+
+    console.log("\n--- End of AI response stream for pure upgradation ---");
+
+    if (!fullResponseText.trim()) {
+      console.warn("AI response for pure upgradation was empty or only whitespace.");
+      return null;
+    }
+
+    const startObject = fullResponseText.indexOf('{');
+    const endObject = fullResponseText.lastIndexOf('}');
+    if (startObject === -1 || endObject === -1 || startObject >= endObject) {
+      console.error("Invalid JSON structure received for pure upgradation (no valid object found):", fullResponseText);
+      return null;
+    }
+    const jsonString = fullResponseText.substring(startObject, endObject + 1);
+
+    let json: any;
+    try {
+      json = JSON.parse(jsonString);
+      console.log('Parsed JSON:', json);
+    } catch (parseError) {
+      console.error("Failed to parse JSON for pure upgradation:", parseError);
+      console.error("Received JSON string:", jsonString);
+      return null;
+    }
+
+    markdownContent += '# 升格文纯享版\n\n';
+    markdownContent += `\`\`\`\n${json.upgradation}\n\`\`\``;
+
+    console.log("Successfully generated and parsed pure upgradation.");
+    return { json, markdownContent };
+
+  } catch (error) {
+    console.error("Error generating pure upgradation:", error);
     return null;
   }
 }

@@ -1,6 +1,6 @@
 import { inngest } from "@/lib/inngest";
 import { CorrectionUtil } from "@/utils/corrections";
-import { generateScore, generateUpgradation } from "@/utils/generate-continuation";
+import { generatePureUpgradation, generateScore, generateUpgradation } from "@/utils/generate-continuation";
 import { generateTitle, generateIcon } from "@/utils/generate-metadata";
 
 // 定义作文批改函数
@@ -65,7 +65,26 @@ export const correctionFunctions = [
         return result;
       });
 
-      // 步骤4：生成标题（如果没有提供）
+      // 步骤4：生成纯享版
+      const pureUpgradationResult = await step.run("generate-pure-upgradation", async () => {
+        const result = await generatePureUpgradation(
+          formData.originalText,
+          formData.essayText,
+          formData.tone,
+          formData.model
+        );
+
+        // 更新批改记录
+        const currentCorrection = await util.getById(initialCorrection.id);
+        await util.update(initialCorrection.id, {
+          ...currentCorrection,
+          content: currentCorrection.content + '\n\n' + (result?.markdownContent || "")
+        });
+
+        return result;
+      });
+
+      // 步骤5：生成标题（如果没有提供）
       if (!formData.title) {
         await step.run("generate-title", async () => {
           const title = await generateTitle(formData.originalText);
@@ -81,7 +100,7 @@ export const correctionFunctions = [
         });
       }
 
-      // 步骤5：生成图标
+      // 步骤6：生成图标
       await step.run("generate-icon", async () => {
         const icon = await generateIcon(formData.originalText);
         
