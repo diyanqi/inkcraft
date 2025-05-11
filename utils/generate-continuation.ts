@@ -298,7 +298,6 @@ export async function generatePureUpgradation(
 
   try {
     const aiModel = getModelByName(model);
-    const tonePrompt = getTonePrompt(tone);
 
     console.log("--- Streaming AI response for pure upgradation ---");
 
@@ -307,7 +306,7 @@ export async function generatePureUpgradation(
       messages: [
         {
           role: 'system',
-          content: getEnglishContinuationPurePrompt(originalText, essayText, tonePrompt),
+          content: getEnglishContinuationPurePrompt(originalText, essayText),
         },
       ],
       maxTokens: 6144,
@@ -349,7 +348,7 @@ export async function generatePureUpgradation(
     }
 
     markdownContent += '# 升格文纯享版\n\n';
-    markdownContent += `\`\`\`\n${json.upgradation}\n\`\`\``;
+    markdownContent += `\n${json.upgradation}\n`;
 
     console.log("Successfully generated and parsed pure upgradation.");
     return { json, markdownContent };

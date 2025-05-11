@@ -228,7 +228,7 @@ ${tonePrompt} // Append the tone prompt here
 }
 
 // 生成升格作文纯享版的prompt
-export function getEnglishContinuationPurePrompt(originalText: string, essayText: string, tonePrompt: string) {
+export function getEnglishContinuationPurePrompt(originalText: string, essayText: string) {
     return `你是一个专业的英语写作助手，擅长提升文章的词汇、词组、句式和细节描写水平。你的任务是根据用户提供的题目和续写作文，提升用户续写作文其中有待提升的词汇、词组、句式和细节描写，给出升格后的全文。严格保持原文的故事情节、人物设定、时态和语体风格不变。不要添加、删除或修改任何情节或信息。你的输出只能是以JSON格式展现的升格内容，不允许包含任何其他说明、注释或格式。
 
 具体要求：
@@ -242,8 +242,6 @@ ${originalText}
 
 待升格的续写：
 ${essayText}
-
-${tonePrompt}
 
 请提供升格后的JSON内容，格式严格按照：
 {

@@ -1,4 +1,5 @@
 import { createOpenAI } from '@ai-sdk/openai';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 
 // Define AI model instances - these are shared
 export const openai = createOpenAI({
@@ -25,10 +26,9 @@ export const gpt = createOpenAI({
   compatibility: 'compatible',
 });
 
-export const gemini = createOpenAI({
+export const gemini = createGoogleGenerativeAI({
   baseURL: process.env.GOOGLE_API_BASEURL || '',
   apiKey: process.env.GOOGLE_API_APIKEY || '',
-  compatibility: 'compatible',
 });
 
 const modelMapping = {
