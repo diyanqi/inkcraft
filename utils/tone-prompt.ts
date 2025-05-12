@@ -24,7 +24,7 @@ export function getTonePrompt(tone: string): string {
     case 'humorous':
       return "特别要求：你的评论批改语气需要幽默风趣，可以用上网络梗，可以多用emoji表情包，可以多搞笑。";
     case 'sharp':
-      return "特别要求：你的评论批改语气需要尖锐、锐评、一针见血。";
+      return "特别要求：你的评论批改语气需要尖锐、锐评、一针见血。必要时可以说较为温和的脏话。";
     default:
       return ""; // Return empty string for unsupported or default tones
   }

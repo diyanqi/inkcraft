@@ -352,7 +352,7 @@ export default function CreatePage() {
             if (data.success) {
                 setCorrectionProgress(100);
                 setCorrectionProgressMessage("批改任务已提交！请过三分钟后刷新页面查看结果。");
-                // toast.success('批改任务已提交，正在跳转...');
+                toast.success('批改任务已提交！请过三分钟后刷新页面查看结果。');
                 // setTimeout(() => {
                 //     setIsConfirmDialogOpen(false);
                 //     router.push(`/dashboard/correction/${data.id}`);

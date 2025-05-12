@@ -27,7 +27,6 @@ export const gpt = createOpenAI({
 });
 
 export const gemini = createGoogleGenerativeAI({
-  baseURL: process.env.GOOGLE_API_BASEURL || '',
   apiKey: process.env.GOOGLE_API_APIKEY || '',
 });
 
