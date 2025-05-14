@@ -64,6 +64,7 @@ export const correctionFunctions = [
         return result;
       });
 
+      /*
       // 步骤4：生成升格建议
       const upgradationResult = await step.run("generate-upgradation", async () => {
         const result = await generateUpgradation(
@@ -100,6 +101,7 @@ export const correctionFunctions = [
 
         return result;
       });
+      */
 
       // 步骤6：生成标题（如果没有提供）
       if (!formData.title) {

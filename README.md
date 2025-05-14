@@ -87,4 +87,3 @@ CREATE TRIGGER set_updated_at
 CREATE INDEX idx_corrections_user_email ON corrections(user_email);
 CREATE INDEX idx_corrections_created_at ON corrections(created_at);
 ```
-  

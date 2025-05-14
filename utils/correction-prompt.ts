@@ -270,82 +270,87 @@ export const INTERPRETATION_SECTIONS = [
 
 // Define the mapping from JSON keys to Chinese titles for Markdown
 export const INTERPRETATION_SECTIONS_MAP: { [key: string]: string } = {
-mainIdeaSummary: "大意梳理",
-plotAndCharacters: "情节与人物分析 (5W)",
-textType: "文本类型",
-writingFramework: "写作框架思路",
-roughOutline: "大致写作提纲",
-relevantVocabulary: "相关语料建议",
+  preamble: "写在前面",
+  introductoryQuestions: "问题导入",
+  paragraphAnalysis: "分段解读",
+  questionAnswers: "问题解答",
+  writingOutline: "写作框架搭建",
+  extendedVocabulary: "续写中可能要用到的相关话题词汇、预料的补充扩展",
 };
 
+// Define the desired order of sections in the Markdown output
+export const INTERPRETATION_SECTIONS_ORDER: string[] = [
+  "preamble",
+  "introductoryQuestions",
+  "paragraphAnalysis",
+  "questionAnswers",
+  "writingOutline",
+  "extendedVocabulary",
+];
 
 export function getInterpretationPrompt(originalText: string, tonePrompt: string) {
   return `你是一个专业的英语作文题目分析师，擅长将复杂的作文题目分解成易于理解和写作的部分。你的任务是根据用户提供的作文题目，生成一份详细的解析，帮助用户理解题目并规划写作。你的输出只能是以JSON格式展现的解析内容，不允许包含任何其他说明、注释或格式。
 
-你需要严格按照以下JSON格式输出：
+你需要严格按照以下JSON格式输出，确保所有字段都存在，即使某些内容较少：
 
 {
-"mainIdeaSummary": "梳理题目大意，抓住其中可能包含的伏笔、暗示，以及在写作中可以协同的部分。", // 字符串，包含对题目大意的总结和相关提示
-"plotAndCharacters": "分析题目的when, who, where, what, why，分析可能的人物性格，梳理故事情节。", // 字符串，包含对5W、人物和情节的分析
-"textType": "确定文本类型：人与自然、人与社会、还是自我成长。", // 字符串，明确指出文本类型
-"writingFramework": "运用文本类型衔接情节与人物分析，过渡到主题大意，梳理写作框架思路。", // 字符串，说明如何构建写作框架
-"roughOutline": { // 对象，表示大致的写作提纲
-  "第一段": [ // 数组，包含第一段的要点
-    "1.1 要点",
-    "1.2 要点",
-    "1.3 要点"
-    // ... 3~4个小部分
+  "preamble": "由作文题目得到的备考提示、出题评价或人生感悟。请将这些内容连接成一个自然的段落，不要分点。",
+  "introductoryQuestions": [
+    "提出5到7个关键问题，帮助理解和分析题目。这些问题必须包括：主人公的性格特征是什么？题目的when, who, where, what, why分别是什么？如何分析情节、内容、矛盾、续写情节的占比、线索？最后的主旨是什么，该如何升华？请将每个问题作为数组的一个元素，不要在问题内部换行或分点。",
+    // ... 5-7个问题
   ],
-  "第二段": [ // 数组，包含第二段的要点
-    "2.1 要点",
-    "2.2 要点",
-    "2.3 要点",
-    "2.4 要点"
-    // ... 3~4个小部分
-  ]
-  // ... 更多段落同理
-},
-"relevantVocabulary": { // 对象，包含可能需要用到的相关语料，以主题为单位
-  "主题一: [主题名称]": { // 对象，表示第一个主题的语料
-    "vocabulary": [ // 数组，至少3个词汇
-      "词汇1",
-      "词汇2",
-      "词汇3"
+  "paragraphAnalysis": [
+    {
+      "originText": "原文引用",
+      "details": "对原文某一段进行简要翻译。如果必要，补充相关的文化背景信息。然后解读该段落中的关键词和细节。接着分析该段落有哪些协同点，即后面续写中可以利用的点，并说明如何使用这些点。最后总结该段落值得学习的语料和语言点，并拓展相关的词汇和表达。将所有内容组织成一个自然的段落，不要分点。",
+      // 就这两个键，不能有其他的键
+    }
+    // ... 对原文的每一段（共5到7段）进行同样格式的分析
+  ],
+  "questionAnswers": [
+    {
+      "question": "对应'introductoryQuestions'中的一个问题，请将问题原文复制到这里。",
+      "answer": "对该问题进行详细解答。请将解答内容连接成一个自然的段落，不要分点。"
+    }
+    // ... 回答'introductoryQuestions'中的所有问题
+  ],
+  "writingOutline": {
+    "第一段": [
+      "列出第一段的写作要点，使用'1.1 要点', '1.2 要点', '1.3 要点'等格式。",
+      // ... 3到4个要点
     ],
-    "phrases": [ // 数组，至少3个短语
-      "短语1",
-      "短语2",
-      "短语3"
-    ],
-    "sentences": [ // 数组，至少2个句子
-      "句子1",
-      "句子2"
+    "第二段": [
+      "列出第二段的写作要点，使用'2.1 要点', '2.2 要点', '2.3 要点', '2.4 要点'等格式。",
+      // ... 3到4个要点
     ]
+    // 注意：框架只需包含这两段
   },
-  "主题二: [主题名称]": { // 对象，表示第二个主题的语料
-    "vocabulary": [
-      "词汇A",
-      "词汇B",
-      "词汇C"
-    ],
-    "phrases": [
-      "短语A",
-      "短语B",
-      "短语C"
-    ],
-    "sentences": [
-      "句子A",
-      "句子B"
-    ]
+  "extendedVocabulary": {
+    "话题一: [请替换为具体话题名称]": {
+      "vocabulary": [
+        { "word": "词汇1", "explanation": "解释1，包括英文解释、中文释义、示例用法" },
+        { "word": "词汇2", "explanation": "解释2，包括英文解释、中文释义、示例用法" }
+        // ... 5到6个词汇及其解释
+      ],
+      "phrases": [
+        "短语1",
+        "短语2"
+        // ... 3到4个短语
+      ],
+      "sentences": [
+        "例句1",
+        "例句2"
+        // ... 3到4个例句
+      ]
+    }
+    // ... 最多包含2到3个话题
   }
-  // ... 最多两个主题
-}
 }
 
 作文题目：
 ${originalText}
 
-${tonePrompt} // Append the tone prompt here
+${tonePrompt}
 
 请提供解析的JSON内容：`;
 }
