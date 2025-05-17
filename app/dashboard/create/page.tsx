@@ -3,8 +3,8 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { useRouter, usePathname } from "next/navigation"; // Add usePathname here
-import React, { useState, useRef, useCallback, useEffect } from "react" // Added useEffect
+import { useRouter, usePathname } from "next/navigation"
+import React, { useState } from "react"
 import {
     Drawer,
     DrawerContent,
@@ -40,21 +40,18 @@ import {
     Dialog,
     DialogContent,
     DialogDescription,
-    DialogFooter, // Added
+    DialogFooter,
     DialogHeader,
     DialogTitle,
-    DialogClose, // Added
+    DialogClose,
 } from "@/components/ui/dialog"
 import { Check, ScanText, ImagePlus, RotateCcw, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
-import imageCompression from 'browser-image-compression'
 import { useMediaQuery } from "@/hooks/use-media-query"
-import { Progress } from "@/components/ui/progress" // Added
-import { Label } from "@/components/ui/label" // Added
+import { Progress } from "@/components/ui/progress"
+import { Label } from "@/components/ui/label"
 import { inngest } from "@/lib/inngest"
-
-// Removed crop related imports and functions
 
 // Define Form Schema Type
 const formSchema = z.object({
@@ -68,12 +65,11 @@ const formSchema = z.object({
 });
 type FormData = z.infer<typeof formSchema>;
 
-
 // --- Confirmation Dialog Component ---
 interface ConfirmCorrectionDialogProps {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
-    onConfirm: () => void; // Renamed from startCorrectionProcess for clarity
+    onConfirm: () => void;
     formData: FormData | null;
     isLoading: boolean;
     progress: number;
@@ -89,7 +85,7 @@ function ConfirmCorrectionDialog({
     progress,
     progressMessage
 }: ConfirmCorrectionDialogProps) {
-    if (!formData) return null; // Don't render if no data
+    if (!formData) return null;
 
     // Helper to get display names
     const getModelDisplayName = (value: string) => {
@@ -133,7 +129,6 @@ function ConfirmCorrectionDialog({
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
-                    {/* Display summary of options */}
                     <div className="grid grid-cols-3 items-center gap-4">
                         <Label className="text-right text-muted-foreground">作文类型</Label>
                         <div className="col-span-2 font-medium">{getEssayTypeDisplayName(formData.essayType)}</div>
@@ -147,7 +142,6 @@ function ConfirmCorrectionDialog({
                         <div className="col-span-2 font-medium">{getToneDisplayName(formData.tone)}</div>
                     </div>
 
-                    {/* Progress Section - Visible only when loading */}
                     {isLoading && (
                         <div className="mt-4 pt-4 border-t">
                             <Label className="text-sm font-medium">批改进度</Label>
@@ -157,7 +151,6 @@ function ConfirmCorrectionDialog({
                     )}
                 </div>
                 <DialogFooter>
-                    {/* Conditional Rendering for Buttons */}
                     {!isLoading ? (
                         <>
                             <DialogClose asChild>
@@ -165,13 +158,11 @@ function ConfirmCorrectionDialog({
                                     取消
                                 </Button>
                             </DialogClose>
-                            <Button type="button" onClick={onConfirm}> {/* Changed to type="button" */}
+                            <Button type="button" onClick={onConfirm}>
                                 确认批改
                             </Button>
                         </>
                     ) : (
-                        // Show only a disabled "Processing" button or nothing while loading
-                        // Or keep the cancel button active? Let's keep Cancel active.
                         <>
                             <DialogClose asChild>
                                 <Button type="button" variant="outline" disabled={isLoading}>
@@ -190,26 +181,15 @@ function ConfirmCorrectionDialog({
     )
 }
 
-
 // --- Main Page Component ---
 export default function CreatePage() {
-    // State management
-    const [isOriginalOCRLoading, setIsOriginalOCRLoading] = useState(false);
-    const [isReferenceOCRLoading, setIsReferenceOCRLoading] = useState(false);
-    const [isEssayOCRLoading, setIsEssayOCRLoading] = useState(false);
-    const [isDrawerOpen, setIsDrawerOpen] = useState(false); // For OCR Image Selection
-    const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false); // For Confirmation Dialog
-    const [isCorrectionLoading, setIsCorrectionLoading] = useState(false); // For API call loading state
-    const [correctionProgress, setCorrectionProgress] = useState(0); // Progress 0-100
-    const [correctionProgressMessage, setCorrectionProgressMessage] = useState(""); // Progress text
-    const [pendingFormData, setPendingFormData] = useState<FormData | null>(null); // Store validated data before confirmation
-
-    const [imageSrc, setImageSrc] = useState<string | null>(null);
-    const [activeInput, setActiveInput] = useState<'original' | 'reference' | 'essay' | null>(null);
-    const inputFileRef = useRef<HTMLInputElement>(null);
-    const isDesktop = useMediaQuery("(min-width: 768px)");
+    const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+    const [isCorrectionLoading, setIsCorrectionLoading] = useState(false);
+    const [correctionProgress, setCorrectionProgress] = useState(0);
+    const [correctionProgressMessage, setCorrectionProgressMessage] = useState("");
+    const [pendingFormData, setPendingFormData] = useState<FormData | null>(null);
     const router = useRouter();
-    const currentPathname = usePathname(); // Get the current pathname
+    const currentPathname = usePathname();
 
     const form = useForm<FormData>({
         resolver: zodResolver(formSchema),
@@ -224,108 +204,6 @@ export default function CreatePage() {
         }
     });
 
-    // --- Functions ---
-
-    // Image handling (handleImageChange, handleDrop, handleDragOver) - unchanged
-    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0]
-        if (!file) return
-
-        const reader = new FileReader()
-        reader.addEventListener('load', () => {
-            setImageSrc(reader.result as string)
-        })
-        reader.readAsDataURL(file)
-        if (e.target) e.target.value = '' // Reset file input
-    }
-
-    const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault()
-        const file = e.dataTransfer.files[0]
-        if (file && file.type.startsWith('image/')) {
-            const reader = new FileReader()
-            reader.addEventListener('load', () => {
-                setImageSrc(reader.result as string)
-            })
-            reader.readAsDataURL(file)
-        }
-    }
-
-    const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault()
-    }
-
-    // resetImageStates - unchanged
-    const resetImageStates = () => {
-        setImageSrc(null);
-        setActiveInput(null);
-        if (inputFileRef.current) inputFileRef.current.value = '';
-    };
-
-    // handleOCR - unchanged (keeps its own toasts for success/error)
-    const handleOCR = async (file: Blob, inputType: 'original' | 'reference' | 'essay') => {
-        const setLoadingState = {
-            original: setIsOriginalOCRLoading,
-            reference: setIsReferenceOCRLoading,
-            essay: setIsEssayOCRLoading,
-        }[inputType];
-        setLoadingState(true);
-        try {
-            const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true };
-            const fileName = `ocr_image_${inputType}.jpg`;
-            const fileToProcess = new File([file], fileName, {
-                type: file.type.startsWith('image/') ? file.type : 'image/jpeg',
-                lastModified: Date.now(),
-            });
-            const compressedFile = await imageCompression(fileToProcess, options);
-            const formData = new FormData();
-            formData.append("file", compressedFile, fileName);
-
-            const res = await fetch("/api/ocr", { method: "POST", body: formData });
-            const data = await res.json();
-
-            if (res.ok && data.success) {
-                const fieldMap = {
-                    original: 'originalText',
-                    reference: 'referenceText',
-                    essay: 'essayText'
-                }[inputType] as 'originalText' | 'referenceText' | 'essayText';
-                form.setValue(fieldMap, data.text);
-                toast.success("OCR 识别成功"); // Keep OCR toast
-            } else {
-                console.error("OCR API Error:", data);
-                throw new Error(data.error || "OCR 识别失败");
-            }
-        } catch (err) {
-            console.error("OCR Fetch or Processing Error:", err);
-            // Keep OCR toast for failure
-            toast.error(`OCR 失败: ${err instanceof Error ? err.message : "请重试"}`);
-        } finally {
-            setLoadingState(false);
-        }
-    };
-
-
-    // handleProceedOCR (calls handleOCR) - unchanged
-    const handleProceedOCR = async () => {
-        if (!imageSrc || !activeInput) {
-            toast.error("没有可识别的图片");
-            return;
-        }
-        try {
-            const response = await fetch(imageSrc);
-            const imageBlob = await response.blob();
-            await handleOCR(imageBlob, activeInput);
-            setIsDrawerOpen(false);
-            resetImageStates();
-        } catch (error) {
-            console.error("Error processing image for OCR:", error);
-            toast.error("处理图片失败");
-        }
-    }
-
-
-    // Function to be called when confirming in the dialog
     const startCorrectionProcess = async () => {
         if (!pendingFormData) {
             toast.error("无法开始批改：缺少表单数据。");
@@ -338,7 +216,6 @@ export default function CreatePage() {
         setCorrectionProgressMessage("正在提交批改任务...");
 
         try {
-            // 发送到后端 API
             const response = await fetch('/api/correction/create', {
                 method: 'POST',
                 headers: {
@@ -353,10 +230,6 @@ export default function CreatePage() {
                 setCorrectionProgress(100);
                 setCorrectionProgressMessage("批改任务已提交！请过三分钟后刷新页面查看结果。");
                 toast.success('批改任务已提交！请过三分钟后刷新页面查看结果。');
-                // setTimeout(() => {
-                //     setIsConfirmDialogOpen(false);
-                //     router.push(`/dashboard/correction/${data.id}`);
-                // }, 500);
             } else {
                 throw new Error(data.message || '提交失败');
             }
@@ -372,90 +245,23 @@ export default function CreatePage() {
         }
     };
 
-
-    // Original onSubmit function - Now triggers the confirmation dialog
     const onSubmit = (values: FormData) => {
-        // 1. Store the validated data
         setPendingFormData(values);
-        // 2. Reset progress from previous attempts
         setCorrectionProgress(0);
         setCorrectionProgressMessage("");
-        // 3. Open the confirmation dialog
         setIsConfirmDialogOpen(true);
-        // Note: isCorrectionLoading is set to true inside startCorrectionProcess
     };
 
-    // --- Render Helper Components ---
-
-    // OCRButton - unchanged
-    const OCRButton = ({ isLoading, inputType }: { isLoading: boolean, inputType: 'original' | 'reference' | 'essay' }) => (
-        <Button
-            type="button"
-            className="flex items-center gap-1 text-sm"
-            variant="outline"
-            disabled={isLoading}
-            onClick={() => { setActiveInput(inputType); setIsDrawerOpen(true); }}
-        >
-            {isLoading ? <><Loader2 className="h-4 w-4 animate-spin" />识别中...</> : <><ScanText className="h-4 w-4" />文字识别</>}
-        </Button>
-    );
-
-    // renderImageSelectionContent - unchanged
-    const renderImageSelectionContent = () => (
-        <div className="flex flex-col items-center justify-center px-4 gap-4 h-full">
-            {!imageSrc ? (
-                <>
-                    <div
-                        className="w-full max-w-md h-40 border-2 border-dashed border-gray-300 rounded-md flex flex-col items-center justify-center text-gray-500 hover:border-gray-400 transition-colors cursor-pointer text-center p-4"
-                        onDrop={handleDrop} onDragOver={handleDragOver} onClick={() => inputFileRef.current?.click()}
-                    >
-                        <ImagePlus className="w-8 h-8 mb-2 text-gray-400" />
-                        将图片拖放到此处 或 点击选择
-                    </div>
-                    <input ref={inputFileRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
-                </>
-            ) : (
-                <div className="flex flex-col items-center gap-4 w-full">
-                    <p className="text-sm text-muted-foreground">已选择图片:</p>
-                    <img src={imageSrc} alt="Selected preview" className="max-w-full max-h-[400px] md:max-h-[500px] object-contain border rounded-md" />
-                </div>
-            )}
-        </div>
-    );
-
-
-    // renderImageSelectionFooter - unchanged
-    const renderImageSelectionFooter = () => (
-        <div className="flex flex-row justify-end gap-2 pt-4 border-t">
-            {imageSrc && (
-                <Button onClick={resetImageStates} variant="ghost" disabled={isOriginalOCRLoading || isReferenceOCRLoading || isEssayOCRLoading}>
-                    <RotateCcw className="w-4 h-4 mr-1" /> 重新选择
-                </Button>
-            )}
-            <Button onClick={handleProceedOCR} disabled={!imageSrc || isOriginalOCRLoading || isReferenceOCRLoading || isEssayOCRLoading}>
-                <ScanText className="w-4 h-4 mr-2" /> 确认识别
-            </Button>
-            <Button variant="outline" onClick={() => { setIsDrawerOpen(false); resetImageStates(); }}>
-                取消
-            </Button>
-        </div>
-    );
-
-
-    // --- Main Return JSX ---
     return (
         <div className="flex flex-col gap-4 p-4 md:p-6">
             <h1 className="text-2xl font-bold tracking-tight">新建批改任务</h1>
             <Form {...form}>
-                {/* Form structure remains the same - uses form.handleSubmit(onSubmit) */}
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                    {/* Grid for Cards */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                        {/* Card 1: Question Input */}
                         <Card>
                             <CardHeader>
                                 <CardTitle className="text-lg">题干录入</CardTitle>
-                                <CardDescription>录入原题及范文，支持文字识别。</CardDescription>
+                                <CardDescription>录入原题及范文。</CardDescription>
                             </CardHeader>
                             <CardContent className="grid gap-4">
                                 <FormField control={form.control} name="title" render={({ field }) => (
@@ -469,10 +275,7 @@ export default function CreatePage() {
                                     <FormItem>
                                         <FormLabel>原题题干</FormLabel>
                                         <FormControl>
-                                            <div className="grid w-auto max-w-3xl gap-1.5">
-                                                <Textarea placeholder="在这里输入原题题干…" className="min-h-[100px] max-h-[200px]" {...field} />
-                                                <div className="flex justify-end"><OCRButton isLoading={isOriginalOCRLoading} inputType="original" /></div>
-                                            </div>
+                                            <Textarea placeholder="在这里输入原题题干…" className="min-h-[100px] max-h-[200px]" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -481,10 +284,7 @@ export default function CreatePage() {
                                     <FormItem>
                                         <FormLabel>参考范文 <span className="text-sm text-muted-foreground">*可选</span></FormLabel>
                                         <FormControl>
-                                            <div className="grid w-auto max-w-3xl gap-1.5">
-                                                <Textarea placeholder="在这里输入参考范文…" className="min-h-[100px] max-h-[200px]" {...field} />
-                                                <div className="flex justify-end"><OCRButton isLoading={isReferenceOCRLoading} inputType="reference" /></div>
-                                            </div>
+                                            <Textarea placeholder="在这里输入参考范文…" className="min-h-[100px] max-h-[200px]" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -496,7 +296,6 @@ export default function CreatePage() {
                                             <FormControl><SelectTrigger className="w-full md:w-[220px]"><SelectValue placeholder="选择类型" /></SelectTrigger></FormControl>
                                             <SelectContent>
                                                 <SelectItem value="gaokao-english-continuation">高考英语 读后续写</SelectItem>
-                                                {/* Other items */}
                                             </SelectContent>
                                         </Select>
                                         <FormMessage />
@@ -505,21 +304,17 @@ export default function CreatePage() {
                             </CardContent>
                         </Card>
 
-                        {/* Card 2: Essay Input */}
                         <Card>
                             <CardHeader>
                                 <CardTitle className="text-lg">文章录入</CardTitle>
-                                <CardDescription>录入待批改的作文，支持文字识别。</CardDescription>
+                                <CardDescription>录入待批改的作文。</CardDescription>
                             </CardHeader>
                             <CardContent className="grid gap-4">
                                 <FormField control={form.control} name="essayText" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>录入习作</FormLabel>
                                         <FormControl>
-                                            <div className="grid w-full gap-1.5">
-                                                <Textarea placeholder="在这里输入你的作文…" className="min-h-[200px] max-h-[400px]" {...field} />
-                                                <div className="flex justify-end"><OCRButton isLoading={isEssayOCRLoading} inputType="essay" /></div>
-                                            </div>
+                                            <Textarea placeholder="在这里输入你的作文…" className="min-h-[200px] max-h-[400px]" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -527,7 +322,6 @@ export default function CreatePage() {
                             </CardContent>
                         </Card>
 
-                        {/* Card 3: Correction Options */}
                         <Card>
                             <CardHeader>
                                 <CardTitle className="text-lg">批改选项</CardTitle>
@@ -540,13 +334,11 @@ export default function CreatePage() {
                                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                                             <FormControl><SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="选择模型" /></SelectTrigger></FormControl>
                                             <SelectContent>
-                                                {/* <SelectItem value="gpt4">GPT-4o</SelectItem> */}
                                                 <SelectItem value="deepseek">Deepseek-v3</SelectItem>
                                                 <SelectItem value="llama">Llama 3.3</SelectItem>
                                                 <SelectItem value="qwen">通义千问 3</SelectItem>
                                                 <SelectItem value="glm">智谱清言 4</SelectItem>
                                                 <SelectItem value="gemini">Google Gemini 2</SelectItem>
-                                                {/* Other items */}
                                             </SelectContent>
                                         </Select>
                                         <FormMessage />
@@ -562,7 +354,6 @@ export default function CreatePage() {
                                                 <SelectItem value="serious">一本正经</SelectItem>
                                                 <SelectItem value="humorous">幽默风趣</SelectItem>
                                                 <SelectItem value="sharp">犀利锐评</SelectItem>
-                                                {/* Other items */}
                                             </SelectContent>
                                         </Select>
                                         <FormMessage />
@@ -572,15 +363,12 @@ export default function CreatePage() {
                         </Card>
                     </div>
 
-                    {/* Submit Button Area - Button type is submit, triggers form.handleSubmit */}
                     <div className="flex justify-end mt-8">
                         <Button
-                            type="submit" // This button now triggers the dialog via onSubmit
+                            type="submit"
                             className="rounded-md bg-primary px-3.5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary flex items-center gap-2"
-                            // Disable the main submit button while the correction process (including dialog interaction) is active
                             disabled={isCorrectionLoading}
                         >
-                            {/* The main button no longer shows loading itself, the dialog handles it */}
                             <Check className="h-4 w-4" />
                             开始批改
                         </Button>
@@ -588,30 +376,10 @@ export default function CreatePage() {
                 </form>
             </Form>
 
-            {/* Image Selection Modal/Drawer (OCR) */}
-            {isDesktop ? (
-                <Dialog open={isDrawerOpen} onOpenChange={(open) => { setIsDrawerOpen(open); if (!open) resetImageStates(); }}>
-                    <DialogContent className="sm:max-w-[550px] h-[75vh] flex flex-col">
-                        <DialogHeader><DialogTitle>文字识别</DialogTitle><DialogDescription>请选择要识别的图片</DialogDescription></DialogHeader>
-                        <div className="flex-grow overflow-y-auto py-4">{renderImageSelectionContent()}</div>
-                        {renderImageSelectionFooter()}
-                    </DialogContent>
-                </Dialog>
-            ) : (
-                <Drawer open={isDrawerOpen} onOpenChange={(open) => { setIsDrawerOpen(open); if (!open) resetImageStates(); }}>
-                    <DrawerContent className="h-[85vh] flex flex-col">
-                        <DrawerHeader className="text-left"><DrawerTitle>文字识别</DrawerTitle><DrawerDescription>请选择要识别的图片</DrawerDescription></DrawerHeader>
-                        <div className="flex-grow overflow-y-auto px-4 py-4">{renderImageSelectionContent()}</div>
-                        <DrawerFooter className="flex-row justify-end gap-2 border-t pt-4">{renderImageSelectionFooter()}</DrawerFooter>
-                    </DrawerContent>
-                </Drawer>
-            )}
-
-            {/* Confirmation Dialog - Rendered here, controlled by state */}
             <ConfirmCorrectionDialog
                 isOpen={isConfirmDialogOpen}
                 onOpenChange={setIsConfirmDialogOpen}
-                onConfirm={startCorrectionProcess} // Pass the actual API call function
+                onConfirm={startCorrectionProcess}
                 formData={pendingFormData}
                 isLoading={isCorrectionLoading}
                 progress={correctionProgress}

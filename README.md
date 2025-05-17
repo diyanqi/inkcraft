@@ -87,3 +87,203 @@ CREATE TRIGGER set_updated_at
 CREATE INDEX idx_corrections_user_email ON corrections(user_email);
 CREATE INDEX idx_corrections_created_at ON corrections(created_at);
 ```
+
+```sql
+-- 添加新列
+ALTER TABLE corrections
+ADD COLUMN public BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN type VARCHAR(255) NOT NULL DEFAULT 'gaokao-english-continuation',
+ADD COLUMN status VARCHAR(255) NOT NULL DEFAULT 'success';
+
+-- 为现有记录更新值
+UPDATE corrections
+SET public = false,
+    type = 'gaokao-english-continuation',
+    status = 'success'
+WHERE public IS NULL 
+   OR type IS NULL 
+   OR status IS NULL;
+```
+
+```sql
+-- 添加 UUID 列
+ALTER TABLE corrections
+ADD COLUMN uuid UUID NOT NULL DEFAULT gen_random_uuid();
+
+-- 为现有记录生成新的 UUID
+UPDATE corrections
+SET uuid = gen_random_uuid()
+WHERE uuid IS NULL;
+
+-- 创建 UUID 索引以提高查询性能
+CREATE INDEX idx_corrections_uuid ON corrections(uuid);
+```
+
+```bash
+pnpm install --no-frozen-lockfile
+```
+
+```json
+{
+    "renderer": "gaokao_english_continuation_v1",
+    "question": "题干",
+    "answer": "用户作文",
+    "score_dimensions": {
+        "relevance_and_accuracy": {
+            "score": 0.9,
+            "explaination": "段首用'Then he remembered'衔接，但原文结尾未提及Dad回忆旧物，存在逻辑断层。"
+        },
+        "plot_plausibility_completeness": {
+            "score": 0.8,
+            "explaination": "情节发展基本合理，结尾Dad决定修复旧物符合人物情感，但修复过程未展开，略显仓促，完整性稍欠。"
+        },
+        "vocabulary_richness": {
+            "score": 0.85,
+            "explaination": "词汇运用较为丰富，使用了如'nostalgic', 'determined'等贴切词汇，但部分表达略有重复，可尝试更多样化的高级词汇。"
+        },
+        "grammatical_accuracy": {
+            "score": 0.95,
+            "explaination": "语法结构准确，仅有一处冠词误用(a old box应为an old box)，整体表达流畅。"
+        },
+        "sentence_variety": {
+            "score": 0.8,
+            "explaination": "句式有一定变化，包含简单句、并列句和少量从句。可以适当增加一些倒装、强调等特殊句式，使表达更生动。"
+        },
+        "cohesion_coherence": {
+            "score": 0.9,
+            "explaination": "段落内部及段落间的衔接自然，使用了'However', 'As a result'等过渡词，逻辑连贯清晰。"
+        },
+        "originality_logicality": {
+            "score": 0.75,
+            "explaination": "续写内容在逻辑上与原文衔接，但情节走向较为常规，创新性略有不足，未能带来太多惊喜。"
+        },
+        "style_voice_consistency": {
+            "score": 0.9,
+            "explaination": "文体与原文保持一致，均为记叙文。人称使用正确且统一，情感基调延续了原文的温馨感。"
+        },
+        "literary_competence_teacher_evaluation": {
+            "score": 0.85,
+            "explaination": "展现了较好的语言组织能力和情感表达能力，对人物心理的刻画较为细腻。整体而言是一篇不错的续写，但细节处仍有打磨空间。"
+        }
+    },
+    "interpretation": {
+        "preface": {
+            "content": "这道作文题目讲述了Helen Fox，一位91岁的寡妇，长期遭受着一个问题困扰：她的邮箱不仅位置危险，而且老旧不堪。直到有一天，她的邻居，也就是作者的爸爸，决定帮助她解决这个困扰。整个故事展现了邻里间的关爱和帮助。"
+        },
+        "guiding_problems": [
+            {
+                "question": "主人公的性格特征是什么？",
+                "answer": "主人公Helen Fox是一位91岁的寡妇，长期遭受着邮箱问题的困扰。她的性格没有直接描述，但是通过邻居们的关爱可以看出她是一个值得帮助的人。"
+            },
+            {
+                "question": "题目的when, who, where, what, why分别是什么？",
+                "answer": "when：没有具体时间；who：Helen Fox、作者的爸爸和邻居们；where：农村地区；what：Helen的邮箱问题；why：因为邮箱位置危险且老旧。"
+            },
+            {
+                "question": "如何分析情节、内容、矛盾、续写情节的占比、线索？",
+                "answer": "情节：邻居们发现Helen的邮箱问题并决定帮助她解决；内容：描述了邮箱的现状和Helen的愿望；矛盾：邮箱位置危险且老旧；续写情节：作者爸爸的帮助和最终解决方案；线索：邻里间的关爱。"
+            },
+            {
+                "question": "最后的主旨是什么，该如何升华？",
+                "answer": "主旨：邻里间的关爱和帮助。升华：可以强调社区力量的重要性和关爱他人的意义。"
+            }
+        ],
+        "paragraph_analysis": [
+            {
+                "original_text": "Helen Fox is a 91-year-old widow. My parents, along with several other neighbors, look after Helen, ensuring she feels loved and supported.",
+                "interpretation": "这段话介绍了Helen Fox的基本情况和邻居们对她的关爱。"
+            }
+        ],
+        "writing_framework_construction": {
+            "sections": [
+                {
+                    "points": [
+                        "介绍Helen Fox的基本情况和邻居们的关爱",
+                        "描述Helen邮箱的问题",
+                        "引入作者爸爸的帮助",
+                        "预示解决问题的过程"
+                    ]
+                },
+                {
+                    "points": [
+                        "作者爸爸联系当地邮政服务的细节",
+                        "找到新位置并更换新邮箱的过程",
+                        "邻居们对Helen的持续关爱",
+                        "总结邻里间的关爱和帮助"
+                    ]
+                }
+            ]
+        },
+        "vocabulary_and_phrases_for_continuation": {
+            "topics": [
+                {
+                    "topic_name": "邻里关爱",
+                    "vocabulary": [
+                        {
+                            "word": "widow",
+                            "explaination": "a woman who has lost her spouse by death and has not remarried.",
+                            "chinese_meaning": "n. 寡妇",
+                            "example_sentence": "Ross was a widow who was struggling to keep her upholstery business going when George Washington and his colleagues asked her to make a flag."
+                        }
+                    ],
+                    "phrases": [
+                        {
+                            "phrase": "wind up",
+                            "explaination": "...",
+                            "chinese_meaning": "...",
+                            "example_sentence": "Ross was a widow who was winding up to keep her upholstery business going when George Washington and his colleagues asked her to make a flag."
+                        }
+                    ],
+                    "useful_sentences": [
+                        "My parents always look after Helen.",
+                        "Helen's mailbox was placed insecurely down a steep driveway."
+                    ]
+                }
+            ]
+        }
+    },
+    "upgradation": {
+        "vocabulary_upgradation": [
+            {
+                "original_word": "tired",
+                "upgraded_word": "exhausted",
+                "english_explanation": "极度的疲劳，常用于描述身体或精神的双重疲惫.",
+                "chinese_meaning": "<adj.> 枯竭的；疲惫不堪的",
+                "example_sentence": "After the marathon, he was so exhausted he could barely walk."
+            },
+        ],
+        "phrase_upgradation": [
+            {
+                "original_phrase": "look after",
+                "upgraded_phrase": "act as custodian",
+                "english_explanation": "to take charge of someone's property",
+                "chinese_meaning": "担任守护者",
+                "example_sentence": "They act as custodians of the ancient library."
+            },
+        ],
+        "sentence_upgradation": [
+            {
+                "original_sentence": "Then he remembered...",
+                "upgraded_sentence": "The moment his fingers brushed against the milk crate's weathered surface, nostalgic waves surged through him like a TikTok challenge gone wild.",
+                "explanation": "用短视频挑战梗增加幽默感",
+                "example_sentence": "The moment he saw the photo, nostalgic waves surged through him like a sudden memory trigger."
+            },
+        ],
+        "detail_description_upgradation": [
+            {
+                "original_description": "The letters on it had faded over the years.",
+                "upgraded_description": "The 'F' had dissolved into a smudged quill, the 'O' melted into a wobbly eye, and the 'X' became a ghostly shadow.",
+                "explanation": "用拟人化手法增强画面感",
+                "example_sentence": "The 'F' had dissolved into a smudged quill, making the mailbox look like a literacy exam gone wrong."
+            },
+        ]
+    },
+    "pure_upgradation": [
+        {
+            "sentence": "ABCDEFG...",
+            "upgradation": "abcdefg...",
+            "comment": "it's good because..."
+        }
+    ]
+}
+```

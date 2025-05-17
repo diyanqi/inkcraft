@@ -3,12 +3,16 @@ import { createClient } from '@supabase/supabase-js';
 // 批改记录类型定义
 export interface Correction {
   id?: bigint;
+  uuid?: string;
   title: string;
   icon: string;
   model: string;
   content: string;
   score: number;
   user_email: string;
+  public: boolean;
+  type: string;
+  status: string;
   created_at?: Date;
   updated_at?: Date;
 }
@@ -26,11 +30,16 @@ export class CorrectionUtil {
   }
 
   // 创建新的批改记录
-  async create(correction: Omit<Correction, 'id' | 'created_at' | 'updated_at'>) {
+  async create(correction: Omit<Correction, 'id' | 'uuid' | 'created_at' | 'updated_at'>) {
     try {
       const { data, error } = await this.supabase
         .from('corrections')
-        .insert([correction])
+        .insert([{
+          ...correction,
+          public: correction.public ?? false,
+          type: correction.type ?? 'gaokao-english-continuation',
+          status: correction.status ?? 'success'
+        }])
         .select()
         .single();
 
@@ -84,13 +93,48 @@ export class CorrectionUtil {
     }
   }
 
+  // 通过 UUID 获取单个批改记录
+  async getByUuid(uuid: string) {
+    try {
+      const { data, error } = await this.supabase
+        .from('corrections')
+        .select('*')
+        .eq('uuid', uuid)
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('获取批改记录失败:', error);
+      throw error;
+    }
+  }
+
   // 更新批改记录
-  async update(id: number, correction: Partial<Omit<Correction, 'id' | 'created_at' | 'updated_at'>>) {
+  async update(id: number, correction: Partial<Omit<Correction, 'id' | 'uuid' | 'created_at' | 'updated_at'>>) {
     try {
       const { data, error } = await this.supabase
         .from('corrections')
         .update(correction)
         .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('更新批改记录失败:', error);
+      throw error;
+    }
+  }
+
+  // 通过 UUID 更新批改记录
+  async updateByUuid(uuid: string, correction: Partial<Omit<Correction, 'id' | 'uuid' | 'created_at' | 'updated_at'>>) {
+    try {
+      const { data, error } = await this.supabase
+        .from('corrections')
+        .update(correction)
+        .eq('uuid', uuid)
         .select()
         .single();
 
@@ -109,6 +153,22 @@ export class CorrectionUtil {
         .from('corrections')
         .delete()
         .eq('id', id);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('删除批改记录失败:', error);
+      throw error;
+    }
+  }
+
+  // 通过 UUID 删除批改记录
+  async deleteByUuid(uuid: string) {
+    try {
+      const { error } = await this.supabase
+        .from('corrections')
+        .delete()
+        .eq('uuid', uuid);
 
       if (error) throw error;
       return true;

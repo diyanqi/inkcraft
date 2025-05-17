@@ -176,7 +176,9 @@ ${essayText}
   }
 }
 ${tonePrompt}
-重要提醒：你的输出仅包含【JSON格式】，不允许出现其他字符或注释。对于json格式中双引号里的内容，请勿再次使用双引号，只允许使用单引号。`
+重要提醒：你的输出仅包含【JSON格式】，不允许出现其他字符或注释。对于json格式中双引号里的内容，请勿再次使用双引号，只允许使用单引号。
+请严格只输出JSON，不能有任何注释、代码块标记、markdown、自然语言说明。所有key都用双引号，内容如需引号请用转义。
+直接给出json，不要有前置说明或思考内容。`
 }
 
 // Define the expected top-level keys in the JSON output for upgradation
@@ -224,7 +226,8 @@ ${essayText}
 
 ${tonePrompt} // Append the tone prompt here
 
-请提供升格后的JSON内容：`;
+请提供升格后的JSON内容：
+请严格只输出JSON，不能有任何注释、代码块标记、markdown、自然语言说明。所有key都用双引号，内容如需引号请用转义。`
 }
 
 // 生成升格作文纯享版的prompt
@@ -255,7 +258,7 @@ ${essayText}
 
 原文每一句的话都需要升格。
 以句号.为每一句话的分隔单位。
-`;
+请严格只输出JSON，不能有任何注释、代码块标记、markdown、自然语言说明。所有key都用双引号，内容如需引号请用转义。`
 }
 
 // Define the expected top-level keys in the JSON output for interpretation based on new requirements
@@ -328,12 +331,21 @@ export function getInterpretationPrompt(originalText: string, tonePrompt: string
   "extendedVocabulary": {
     "话题一: [请替换为具体话题名称]": {
       "vocabulary": [
-        { "word": "词汇1", "explanation": "解释1，包括英文解释、中文释义、示例用法" },
-        { "word": "词汇2", "explanation": "解释2，包括英文解释、中文释义、示例用法" }
+        {
+          "word": "widow",
+          "explaination": "a woman who has lost her spouse by death and has not remarried.",
+          "chinese_meaning": "n. 寡妇",
+          "example_sentence": "Ross was a widow who was struggling to keep her upholstery business going when George Washington and his colleagues asked her to make a flag."
+        }
         // ... 5到6个词汇及其解释
       ],
       "phrases": [
-        "短语1",
+        {
+          "phrase": "phrase1",
+          "explaination": "explanation1",
+          "chinese_meaning": "中文释义1",
+          "example_sentence": "example sentence1"
+        },
         "短语2"
         // ... 3到4个短语
       ],
@@ -352,5 +364,6 @@ ${originalText}
 
 ${tonePrompt}
 
-请提供解析的JSON内容：`;
+请提供解析的JSON内容：
+请严格只输出JSON，不能有任何注释、代码块标记、markdown、自然语言说明。所有key都用双引号，内容如需引号请用转义。`
 }
