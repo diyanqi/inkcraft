@@ -2,25 +2,6 @@ import { inngest } from "@/lib/inngest";
 import { CorrectionUtil } from "@/utils/corrections";
 import { generateInterpretation, generatePureUpgradation, generateScore, generateUpgradation } from "@/utils/generate-continuation";
 import { generateTitle, generateIcon } from "@/utils/generate-metadata";
-import { v4 as uuidv4 } from 'uuid';
-
-// 生成唯一 UUID 的辅助函数
-async function generateUniqueUuid(util: CorrectionUtil, maxRetries = 3): Promise<string> {
-  for (let i = 0; i < maxRetries; i++) {
-    const uuid = uuidv4();
-    try {
-      // 尝试查找是否存在相同 UUID
-      const existing = await util.getByUuid(uuid);
-      if (!existing) {
-        return uuid;
-      }
-    } catch (error) {
-      // 如果记录不存在，说明 UUID 可用
-      return uuid;
-    }
-  }
-  throw new Error('无法生成唯一 UUID，请重试');
-}
 
 function calculateScore(score_dimensions: any) {
   // 计算总分
@@ -37,11 +18,10 @@ export const correctionFunctions = [
     async ({ event, step }) => {
       const formData = event.data;
       const util = new CorrectionUtil();
-      
+
       // 使用辅助函数生成唯一 UUID
-      const uuid = await step.run("generate-unique-uuid", async () => {
-        return await generateUniqueUuid(util);
-      });
+      const uuid = formData.uuid;
+      console.log(formData);
 
       // 步骤1：创建初始批改记录
       const initialCorrection = await step.run("create-initial-correction", async () => {
@@ -50,26 +30,16 @@ export const correctionFunctions = [
           title: formData.title || "",
           icon: "",
           model: formData.model,
-          content: JSON.stringify({question: formData.originalText, answer: formData.essayText}),
+          content: JSON.stringify({ question: formData.originalText, answer: formData.essayText }),
           score: 0,
           user_email: formData.user_email,
           public: false,
           type: 'gaokao-english-continuation',
-          status: 'processing'
+          status: 'generate-score'
         };
-        
-        try {
-          const result = await util.create(correctionData);
-          return result;
-        } catch (error: unknown) {
-          if (error && typeof error === 'object' && 'code' in error && error.code === '23505') { // PostgreSQL 唯一约束违反错误码
-            const newUuid = await generateUniqueUuid(util);
-            const newCorrectionData = { ...correctionData, uuid: newUuid };
-            const result = await util.create(newCorrectionData);
-            return result;
-          }
-          throw error;
-        }
+
+        const result = await util.create(correctionData);
+        return result;
       });
 
       // 步骤2：生成分数和内容
@@ -80,7 +50,7 @@ export const correctionFunctions = [
           formData.tone,
           formData.model
         );
-        
+
         // 更新批改记录
         const currentCorrection = await util.getByUuid(uuid);
         const contentObj = JSON.parse(currentCorrection.content || '{}');
@@ -90,7 +60,8 @@ export const correctionFunctions = [
           content: JSON.stringify({
             ...contentObj,
             score_dimensions: result.score_dimensions
-          })
+          }),
+          status: 'generate-interpretation'
         });
 
         return result;
@@ -112,7 +83,8 @@ export const correctionFunctions = [
           content: JSON.stringify({
             ...contentObj,
             interpretation: result?.interpretation || null
-          })
+          }),
+          status: 'generate-upgradation'
         });
 
         return result;
@@ -135,7 +107,8 @@ export const correctionFunctions = [
           content: JSON.stringify({
             ...contentObj,
             upgradation: result?.upgradation || null
-          })
+          }),
+          status: 'generate-pure-upgradation'
         });
 
         return result;
@@ -157,7 +130,8 @@ export const correctionFunctions = [
           content: JSON.stringify({
             ...contentObj,
             pureUpgradation: result?.pure_upgradation || null
-          })
+          }),
+          status: 'generate-title'
         });
 
         return result;
@@ -167,12 +141,13 @@ export const correctionFunctions = [
       if (!formData.title) {
         await step.run("generate-title", async () => {
           const title = await generateTitle(formData.originalText);
-          
+
           // 更新批改记录
           const currentCorrection = await util.getByUuid(uuid);
           await util.updateByUuid(uuid, {
             ...currentCorrection,
-            title
+            title,
+            status: 'generate-icon'
           });
 
           return title;
@@ -182,7 +157,7 @@ export const correctionFunctions = [
       // 步骤7：生成图标
       await step.run("generate-icon", async () => {
         const icon = await generateIcon(formData.originalText);
-        
+
         // 更新批改记录
         const currentCorrection = await util.getByUuid(uuid);
         await util.updateByUuid(uuid, {

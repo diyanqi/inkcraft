@@ -230,6 +230,9 @@ export default function CreatePage() {
                 setCorrectionProgress(100);
                 setCorrectionProgressMessage("批改任务已提交！请过三分钟后刷新页面查看结果。");
                 toast.success('批改任务已提交！请过三分钟后刷新页面查看结果。');
+                if (data.uuid) {
+                    router.push(`/dashboard/correction/wait/${data.uuid}`);
+                }
             } else {
                 throw new Error(data.message || '提交失败');
             }

@@ -5,11 +5,25 @@ import { auth } from "@/auth";
 import { checkModelAvaliability } from "@/utils/models";
 import { checkToneAvaliability } from "@/utils/tone-prompt";
 import { inngest } from "@/lib/inngest";
+import { v4 as uuidv4 } from 'uuid';
 
-// Import the new utility functions
-import { generateScore, generateUpgradation } from "@/utils/generate-continuation";
-import { generateTitle, generateIcon } from "@/utils/generate-metadata";
-
+// 生成唯一 UUID 的辅助函数
+async function generateUniqueUuid(util: CorrectionUtil, maxRetries = 3): Promise<string> {
+  for (let i = 0; i < maxRetries; i++) {
+    const uuid = uuidv4();
+    try {
+      // 尝试查找是否存在相同 UUID
+      const existing = await util.getByUuid(uuid);
+      if (!existing) {
+        return uuid;
+      }
+    } catch (error) {
+      // 如果记录不存在，说明 UUID 可用
+      return uuid;
+    }
+  }
+  throw new Error('无法生成唯一 UUID，请重试');
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -42,14 +56,16 @@ export async function POST(req: NextRequest) {
 
     if (body.essayType === 'gaokao-english-continuation') {
       // 生成唯一ID
-      const id = crypto.randomUUID();
+      const util = new CorrectionUtil();
+      // const uuid = generateUniqueUuid(util);
+      const uuid = uuidv4();
 
       // 发送事件到 Inngest
       await inngest.send({
         name: "correction/create",
         data: {
           ...body,
-          id,
+          uuid,
           user_email: session.user.email
         }
       });
@@ -58,7 +74,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ 
         success: true, 
         message: "批改任务已提交，正在后台处理",
-        id
+        uuid
       });
     }
 

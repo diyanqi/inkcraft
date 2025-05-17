@@ -30,6 +30,8 @@ import markdown from "remark-parse";
 import docx from "remark-docx";
 import { saveAs } from "file-saver";
 import React from "react"; // Import React for types like ReactNode
+import CorrectionMarkdownContent from "./CorrectionMarkdownContent";
+import CorrectionJsonContent from "./CorrectionJsonContent";
 
 interface Correction {
     id: number;
@@ -53,6 +55,7 @@ export default function CorrectionDetailPage() {
     const [exportFormat, setExportFormat] = useState("md");
     const [loadingExport, setLoadingExport] = useState(false);
     const [open, setOpen] = useState(false);
+    const [jsonContent, setJsonContent] = useState<any | null>(null);
 
     useEffect(() => {
         async function fetchCorrection() {
@@ -65,6 +68,13 @@ export default function CorrectionDetailPage() {
                     setError(data.message || "获取批改记录失败");
                 } else {
                     setCorrection(data.data);
+                    // 尝试解析 content 为 JSON
+                    try {
+                        const parsed = JSON.parse(data.data.content);
+                        setJsonContent(parsed);
+                    } catch (e) {
+                        setJsonContent(null);
+                    }
                 }
             } catch (e) {
                 setError("请求出错");
@@ -280,13 +290,11 @@ export default function CorrectionDetailPage() {
             </header>
             <Separator />
             <div className="mt-6 max-w-none">
-                <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    // Pass the defined components object
-                    components={markdownComponents}
-                >
-                    {correction.content}
-                </ReactMarkdown>
+                {jsonContent ? (
+                    <CorrectionJsonContent data={jsonContent} />
+                ) : (
+                    <CorrectionMarkdownContent content={correction.content} />
+                )}
             </div>
         </article>
     );

@@ -177,4 +177,28 @@ export class CorrectionUtil {
       throw error;
     }
   }
+
+  // 更新批改进度状态
+  /**
+   * 根据 uuid 更新批改记录的状态
+   * @param uuid 批改记录的 uuid
+   * @param status 新的状态字符串（如 'pending', 'processing', 'success', 'failed' 等）
+   * @returns 更新后的批改记录
+   */
+  async updateStatusByUuid(uuid: string, status: string) {
+    try {
+      const { data, error } = await this.supabase
+        .from('corrections')
+        .update({ status })
+        .eq('uuid', uuid)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('更新批改状态失败:', error);
+      throw error;
+    }
+  }
 }
