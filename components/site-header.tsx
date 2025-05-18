@@ -33,7 +33,7 @@ export function SiteHeader() {
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
-        <div className="ml-auto flex items-center gap-2">
+        {/* <div className="ml-auto flex items-center gap-2">
           <Button variant="ghost" asChild size="sm" className="hidden sm:flex">
             <a
               href="https://github.com/diyanqi/inkcraft"
@@ -44,7 +44,7 @@ export function SiteHeader() {
               GitHub
             </a>
           </Button>
-        </div>
+        </div> */}
       </div>
     </header>
   )

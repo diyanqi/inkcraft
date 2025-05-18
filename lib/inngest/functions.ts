@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { inngest } from "@/lib/inngest";
 import { CorrectionUtil } from "@/utils/corrections";
 import { generateInterpretation, generatePureUpgradation, generateScore, generateUpgradation } from "@/utils/generate-continuation";

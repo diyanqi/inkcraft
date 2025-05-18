@@ -34,7 +34,7 @@ import CorrectionMarkdownContent from "./CorrectionMarkdownContent";
 import CorrectionJsonContent from "./CorrectionJsonContent";
 
 interface Correction {
-    id: number;
+    uuid: string;
     title: string;
     icon: string;
     model: string;
@@ -48,7 +48,7 @@ interface Correction {
 export default function CorrectionDetailPage() {
     const router = useRouter();
     const params = useParams();
-    const id = params!.id as string;
+    const uuid = params!.uuid as string;
     const [loading, setLoading] = useState(true);
     const [correction, setCorrection] = useState<Correction | null>(null);
     const [error, setError] = useState("");
@@ -62,7 +62,7 @@ export default function CorrectionDetailPage() {
             setLoading(true);
             setError("");
             try {
-                const res = await fetch(`/api/correction/${id}`);
+                const res = await fetch(`/api/correction/${uuid}`);
                 const data = await res.json();
                 if (!data.success) {
                     setError(data.message || "获取批改记录失败");
@@ -82,8 +82,8 @@ export default function CorrectionDetailPage() {
                 setLoading(false);
             }
         }
-        if (id) fetchCorrection();
-    }, [id]);
+        if (uuid) fetchCorrection();
+    }, [uuid]);
 
     if (loading) {
         // ... (Skeleton loading state remains the same)

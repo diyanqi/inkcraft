@@ -74,10 +74,10 @@ export function NavHistory() {
       <SidebarGroupLabel>历史批改</SidebarGroupLabel>
       <SidebarMenu>
         {history.map((item) => (
-          <SidebarMenuItem key={item.id}>
+          <SidebarMenuItem key={item.uuid}>
             <SidebarMenuButton asChild>
               <div 
-                onClick={() => router.push(`/dashboard/correction/${item.id}`)} 
+                onClick={() => router.push(`/dashboard/correction/${item.uuid}`)} 
                 className="cursor-pointer"
               >
                 <span className="text-xs">{item.icon}</span>

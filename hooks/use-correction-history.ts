@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react"
 
 type CorrectionHistory = {
-  id: string
+  uuid: string
   title: string
   icon: string
   url: string

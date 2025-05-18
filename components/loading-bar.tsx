@@ -7,7 +7,7 @@ import 'nprogress/nprogress.css';
 
 // 配置 NProgress
 NProgress.configure({
-  showSpinner: false,
+  showSpinner: true,
   trickleSpeed: 200,
   minimum: 0.3
 });

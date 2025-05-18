@@ -18,9 +18,15 @@ export default function DashboardLayout({
       } as React.CSSProperties}
     >
       <AppSidebar variant="inset" />
-      <SidebarInset>
+      <SidebarInset
+        style={{
+          height: "98vh", // 固定高度
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
         <SiteHeader />
-        <div className="flex flex-1 flex-col">
+        <div className="flex-1 flex flex-col overflow-auto">
           <div className="@container/main flex flex-1 flex-col gap-2">
             {children}
           </div>
