@@ -178,7 +178,7 @@ ${essayText}
 ${tonePrompt}
 重要提醒：你的输出仅包含【JSON格式】，不允许出现其他字符或注释。对于json格式中双引号里的内容，请勿再次使用双引号，只允许使用单引号。
 请严格只输出JSON，不能有任何注释、代码块标记、markdown、自然语言说明。所有key都用双引号，内容如需引号请用转义。
-直接给出json，不要有前置说明或思考内容。`
+直接给出json，不要有前置说明。`
 }
 
 // Define the expected top-level keys in the JSON output for upgradation

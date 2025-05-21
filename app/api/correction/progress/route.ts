@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
       progress,
       status,
       message,
-      correctionId: status === 'finished' ? data.id : null,
+      correctionId: status === 'finished' ? uuid : null,
     });
   } catch (e: any) {
     return NextResponse.json({

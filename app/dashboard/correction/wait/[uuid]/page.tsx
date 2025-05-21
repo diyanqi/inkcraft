@@ -27,7 +27,6 @@ export default function CorrectionWaitPage() {
         setStatus(data.status ?? "pending");
         setMessage(data.message ?? "正在排队/处理中，请耐心等待...");
         if (data.status === "finished") {
-          // 跳转到批改详情页，假设 data.correctionId 是数据库里的主键
           if (data.correctionId) {
             router.replace(`/dashboard/correction/${data.correctionId}`);
           }

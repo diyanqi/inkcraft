@@ -86,18 +86,21 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
       <TabsContent value="origin">
         <Card>
           <CardHeader>
-            <CardTitle>原文</CardTitle>
+            <CardTitle>真题回顾</CardTitle>
           </CardHeader>
           <CardContent>
             {/* Added check for question */}
             {question && (
-              <div className="whitespace-pre-line mb-4">{question}</div>
+              <div className="mb-4">
+                <span className="font-bold">题目</span>
+                <div className="whitespace-pre-line">{question}</div>
+              </div>
             )}
             <Separator />
             {/* Added check for answer */}
             {answer && (
               <div className="mt-4">
-                <span className="font-bold">续写：</span>
+                <span className="font-bold">我的续写</span>
                 <div className="whitespace-pre-line">{answer}</div>
               </div>
             )}
@@ -116,13 +119,13 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
             {score_dimensions && scoreKeys.length > 0 ? (
               <div className="space-y-6">
                 {/* 雷达图 */}
-                <div className="h-[400px] w-full">
+                <div className="h-[250px] w-[full]">
                   <ResponsiveContainer width="100%" height="100%">
                     <ChartContainer
                       config={chartConfig}
-                      className="mx-auto aspect-square max-h-[250px]"
+                      className="mx-auto aspect-square max-h-[250px] w-[full]"
                     >
-                      <RadarChart data={radarData}>
+                      <RadarChart data={radarData} className="w-[full]">
                         <PolarGrid />
                         <ChartTooltip
                           cursor={false}
@@ -192,34 +195,35 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
             {/* Corrected access for preface */}
             {preface?.content && (
               <div className="mb-4">
-                <span className="font-bold">前言：</span>
+                <span className="font-bold">前言</span>
+                <br />
                 <span>{preface.content}</span>
               </div>
             )}
             {/* Corrected access for guiding_problems */}
             {Array.isArray(guiding_problems) && guiding_problems.length > 0 && (
               <div className="mb-4">
-                <span className="font-bold">引导问题：</span>
-                <ul className="list-disc ml-6">
+                <span className="font-bold">问题导入</span>
+                <ol className="list-decimal ml-6">
                   {guiding_problems.map(
                     (
                       item: { question: string; answer?: string },
                       idx: number
                     ) => (
                       <li key={idx} className="mb-1">
-                        <span className="font-semibold">{item.question}</span>
-                        {item.answer && <>：{item.answer}</>}
+                        <span>{item.question}</span>
+                        {/* {item.answer && <>：{item.answer}</>} */}
                       </li>
                     )
                   )}
-                </ul>
+                </ol>
               </div>
             )}
             {/* Corrected access for paragraph_analysis */}
             {Array.isArray(paragraph_analysis) &&
               paragraph_analysis.length > 0 && (
                 <div className="mb-4">
-                  <span className="font-bold">段落解析：</span>
+                  <span className="font-bold">段落解析</span>
                   <ul className="list-disc ml-6">
                     {paragraph_analysis.map(
                       (
@@ -238,20 +242,36 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
                   </ul>
                 </div>
               )}
+            {Array.isArray(guiding_problems) && guiding_problems.length > 0 && (
+              <div className="mb-4">
+                <span className="font-bold">问题解答</span>
+                <ol className="list-decimal ml-6">
+                  {guiding_problems.map(
+                    (
+                      item: { question: string; answer?: string },
+                      idx: number
+                    ) => (
+                      <li key={idx} className="mb-1">
+                        <span>{item.question}</span><br />
+                        {item.answer && <>{item.answer}</>}
+                      </li>
+                    )
+                  )}
+                </ol>
+              </div>
+            )}
             {/* Corrected access for writing_framework_construction */}
             {writing_framework_construction?.sections?.length > 0 && (
               <div>
-                <span className="font-bold">写作框架：</span>
+                <span className="font-bold">写作框架</span>
                 <ol className="list-decimal ml-6">
                   {writing_framework_construction.sections.map(
                     (section: { points: string[] }, idx: number) => (
                       <li key={idx}>
-                        <ul className="list-disc ml-4">
-                          {Array.isArray(section.points) &&
-                            section.points.map((point: string, i: number) => (
-                              <li key={i}>{point}</li>
-                            ))}
-                        </ul>
+                        {Array.isArray(section.points) &&
+                          section.points.map((point: string, i: number) => (
+                            <span key={i}>{point}<br /></span>
+                          ))}
                       </li>
                     )
                   )}
@@ -269,11 +289,12 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
             <CardTitle>词汇与表达升级</CardTitle>
           </CardHeader>
           <CardContent>
+            <Separator className="mb-4" />
             {/* 话题词汇、短语、句型 */}
             {/* Corrected access for vocabulary_and_phrases_for_continuation */}
             {vocabulary_and_phrases_for_continuation?.topics?.length > 0 && (
               <div className="mb-4">
-                <span className="font-bold">话题词汇与表达：</span>
+                <span className="font-bold mb-4">话题词汇</span>
                 {vocabulary_and_phrases_for_continuation.topics.map(
                   (
                     topic: {
@@ -290,8 +311,9 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
                     idx: number
                   ) => (
                     <div key={idx} className="mb-2">
-                      <span className="font-semibold">{topic.topic_name}</span>
+                      <span className="font-medium">{topic.topic_name}</span><br />
                       {/* Added check for vocabulary */}
+                      <span className="font-semibold text-sm">词汇</span>
                       {Array.isArray(topic.vocabulary) &&
                         topic.vocabulary.length > 0 && (
                           <ul className="list-disc ml-6">
@@ -306,10 +328,10 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
                                 i: number
                               ) => (
                                 <li key={i}>
-                                  <span className="font-bold">{v.word}</span>：
-                                  {v.chinese_meaning}（{v.explaination}）<br />
+                                  <span className="font-medium">{v.word}</span><br />
+                                  {v.explaination} &nbsp;&nbsp;&nbsp; {v.chinese_meaning}<br />
                                   <span className="text-muted-foreground">
-                                    例句：{v.example_sentence}
+                                    • e.g.: {v.example_sentence}
                                   </span>
                                 </li>
                               )
@@ -320,7 +342,7 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
                       {Array.isArray(topic.phrases) &&
                         topic.phrases.length > 0 && (
                           <div>
-                            <span className="font-semibold">短语：</span>
+                            <span className="font-semibold text-sm">短语</span>
                             <ul className="list-disc ml-6">
                               {topic.phrases.map((p: string, i: number) => (
                                 <li key={i}>{p}</li>
@@ -332,7 +354,7 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
                       {Array.isArray(topic.useful_sentences) &&
                         topic.useful_sentences.length > 0 && (
                           <div>
-                            <span className="font-semibold">实用句型：</span>
+                            <span className="font-semibold text-sm">实用句子</span>
                             <ul className="list-disc ml-6">
                               {topic.useful_sentences.map(
                                 (s: string, i: number) => (
@@ -350,10 +372,11 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
 
             {/* 单词升级 */}
             {/* Corrected access for vocabulary_upgradation */}
+            <Separator className="mb-4" />
             {Array.isArray(vocabulary_upgradation) &&
               vocabulary_upgradation.length > 0 && (
                 <div className="mb-4">
-                  <span className="font-bold">单词升级：</span>
+                  <span className="font-bold">词汇升级</span>
                   <ul className="list-disc ml-6">
                     {vocabulary_upgradation.map(
                       (
@@ -373,9 +396,9 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
                           <span className="text-green-700">
                             {item.upgraded_word}
                           </span>
-                          （{item.chinese_meaning}）<br />
+                          &nbsp;&nbsp;&nbsp;{item.chinese_meaning}<br />
                           <span className="text-muted-foreground">
-                            例句：{item.example_sentence}
+                            e.g.: {item.example_sentence}
                           </span>
                         </li>
                       )
@@ -386,10 +409,11 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
 
             {/* Added Phrase Upgradation */}
             {/* Corrected access for phrase_upgradation */}
+            <Separator className="mb-4" />
             {Array.isArray(phrase_upgradation) &&
               phrase_upgradation.length > 0 && (
                 <div className="mb-4">
-                  <span className="font-bold">短语升级：</span>
+                  <span className="font-bold">词组升级</span>
                   <ul className="list-disc ml-6">
                     {phrase_upgradation.map(
                       (
@@ -405,18 +429,18 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
                         <li key={idx}>
                           <span className="font-bold">
                             {item.original_phrase}
-                          </span>{" "}
+                          </span>{" "}<br />
                           →{" "}
                           <span className="text-green-700">
                             {item.upgraded_phrase}
                           </span>
-                          （{item.chinese_meaning}）<br />
+                          <br />
                           <span className="text-muted-foreground">
-                            解释：{item.english_explanation}
+                            • {item.english_explanation}&nbsp;&nbsp;&nbsp;{item.chinese_meaning}
                           </span>
                           <br />
                           <span className="text-muted-foreground">
-                            例句：{item.example_sentence}
+                            • e.g.: {item.example_sentence}
                           </span>
                         </li>
                       )
@@ -427,10 +451,11 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
 
             {/* 句型升级 */}
             {/* Corrected access for sentence_upgradation */}
+            <Separator className="mb-4" />
             {Array.isArray(sentence_upgradation) &&
               sentence_upgradation.length > 0 && (
                 <div className="mb-4">
-                  <span className="font-bold">句型升级：</span>
+                  <span className="font-bold">句型升级</span>
                   <ul className="list-disc ml-6">
                     {sentence_upgradation.map(
                       (
@@ -444,7 +469,7 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
                         <li key={idx}>
                           <span className="font-bold">
                             {item.original_sentence}
-                          </span>{" "}
+                          </span>{" "}<br />
                           →{" "}
                           <span className="text-green-700">
                             {item.upgraded_sentence}
@@ -462,10 +487,11 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
 
             {/* 细节升级 */}
             {/* Corrected access for detail_description_upgradation */}
+            <Separator className="mb-4" />
             {Array.isArray(detail_description_upgradation) &&
               detail_description_upgradation.length > 0 && (
                 <div className="mb-4">
-                  <span className="font-bold">细节描写升级：</span>
+                  <span className="font-bold">细节描写升级</span>
                   <ul className="list-disc ml-6">
                     {detail_description_upgradation.map(
                       (
@@ -479,7 +505,7 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
                         <li key={idx}>
                           <span className="font-bold">
                             {item.original_description}
-                          </span>{" "}
+                          </span>{" "}<br />
                           →{" "}
                           <span className="text-green-700">
                             {item.upgraded_description}
@@ -494,11 +520,13 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
                   </ul>
                 </div>
               )}
+
             {/* 纯升级 */}
             {/* Corrected access for pureUpgradation - this was already correct as it's top-level */}
+            <Separator className="mb-4" />
             {Array.isArray(pureUpgradation) && pureUpgradation.length > 0 && (
               <div>
-                <span className="font-bold">原句升级：</span>
+                <span className="font-bold">升格文纯享版</span>
                 <ul className="list-disc ml-6">
                   {pureUpgradation.map(
                     (

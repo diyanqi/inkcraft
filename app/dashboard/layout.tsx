@@ -8,7 +8,7 @@ import {
 export default function DashboardLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <SidebarProvider
@@ -23,6 +23,7 @@ export default function DashboardLayout({
           height: "98vh", // 固定高度
           display: "flex",
           flexDirection: "column",
+          backgroundColor: "transparent", // 确保背景透明
         }}
       >
         <SiteHeader />
@@ -33,5 +34,5 @@ export default function DashboardLayout({
         </div>
       </SidebarInset>
     </SidebarProvider>
-  )
+  );
 }
