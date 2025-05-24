@@ -1,15 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState } from "react"; // Added useState
+import React from "react"; // Removed useState as it's lifted
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
   Radar as RadarIcon,
-  BookOpenText, // Icon for Origin
-  Lightbulb,    // Icon for Analysis
-  ListChecks,   // Icon for Topic Material
-  ArrowUpCircle, // Icon for Writing Upgrade
-  FileSignature, // Generic for Score (can be changed)
+  BookOpenText,
+  Lightbulb,
+  ListChecks,
+  ArrowUpCircle,
+  FileSignature,
 } from "lucide-react";
 import {
   PolarAngleAxis,
@@ -24,8 +24,10 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { Checkbox } from "@/components/ui/checkbox"; // Added Checkbox
-import { Label } from "@/components/ui/label";       // Added Label
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { findContextSimple } from "@/utils/markdownUtils"; // Assuming findContextSimple is moved
+
 
 const chartConfig = {
   desktop: {
@@ -34,20 +36,52 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-const SectionTitle: React.FC<{ children: React.ReactNode, className?: string }> = ({ children, className }) => (
+const SectionTitle: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => (
   <h2 className={`text-xl font-semibold mt-6 mb-3 first:mt-0 ${className || ''}`}>
     {children}
   </h2>
 );
 
-const SubSectionTitle: React.FC<{ children: React.ReactNode, className?: string }> = ({ children, className }) => (
+const SubSectionTitle: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => (
   <h3 className={`text-lg font-medium mt-4 mb-2 ${className || ''}`}>
     {children}
   </h3>
 );
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export default function CorrectionJsonContent({ data }: { data: any }) {
+const ParagraphRenderer: React.FC<{ text: string; useDropCap: boolean }> = ({ text, useDropCap }) => {
+  if (!text) return null;
+  const paragraphs = text.split('\n').filter(p => p.trim() !== '');
+  return (
+    <div className="font-serif text-lg leading-relaxed flow-root"> {/* flow-root contains floats */}
+      {paragraphs.map((para, index) => (
+        <p
+          key={index}
+          className={`indent-8 mb-4 ${index === 0 && useDropCap ? 'drop-cap' : ''}`}
+        >
+          {para}
+        </p>
+      ))}
+    </div>
+  );
+};
+
+interface CorrectionJsonContentProps {
+  data: any;
+  scoreLabels: { [key: string]: string };
+  showOriginalInPureUpgrade: boolean;
+  setShowOriginalInPureUpgrade: (value: boolean) => void;
+  showAnnotationsInPureUpgrade: boolean;
+  setShowAnnotationsInPureUpgrade: (value: boolean) => void;
+}
+
+export default function CorrectionJsonContent({
+  data,
+  scoreLabels, // Receive scoreLabels as prop
+  showOriginalInPureUpgrade,
+  setShowOriginalInPureUpgrade,
+  showAnnotationsInPureUpgrade,
+  setShowAnnotationsInPureUpgrade,
+}: CorrectionJsonContentProps) {
   const {
     question,
     answer,
@@ -73,27 +107,16 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
   } = upgradation || {};
 
   const scoreKeys = Object.keys(score_dimensions || {});
-  const scoreLabels: { [key: string]: string } = {
-    relevance_and_accuracy: "相关性与准确性",
-    plot_plausibility_completeness: "情节合理与完整",
-    vocabulary_richness: "词汇丰富度",
-    grammatical_accuracy: "语法准确性",
-    sentence_variety: "句式多样性",
-    cohesion_coherence: "衔接与连贯",
-    originality_logicality: "创新与逻辑性",
-    style_voice_consistency: "风格与视角一致",
-    literary_competence_teacher_evaluation: "文学素养与教师评价",
-  };
+  // scoreLabels is now a prop
 
   const radarData = scoreKeys.map((key) => ({
     dimension: scoreLabels[key] || key,
     score: score_dimensions[key]?.score || 0,
+    fullMark: 15,
   }));
 
-  // State for pure_upgrade_text options
-  const [showOriginalInPureUpgrade, setShowOriginalInPureUpgrade] = useState(true);
-  const [showAnnotationsInPureUpgrade, setShowAnnotationsInPureUpgrade] = useState(true);
-
+  // Removed local state for showOriginalInPureUpgrade and showAnnotationsInPureUpgrade
+  // Removed handleExportMarkdown and the export button
 
   return (
     <Tabs defaultValue="origin" className="w-full">
@@ -117,20 +140,16 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
             {question && (
               <>
                 <SectionTitle>真题回顾</SectionTitle>
-                <div className="whitespace-pre-line font-serif text-lg leading-relaxed p-1 clear-float"> {/* Removed bg, added drop-cap related classes */}
-                  <p className="drop-cap">{question}</p>
-                </div>
+                <ParagraphRenderer text={question} useDropCap={false} />
               </>
             )}
             {answer && (
               <>
                 <SectionTitle className="mt-8">我的续写</SectionTitle>
-                <div className="whitespace-pre-line font-serif text-lg leading-relaxed p-1 clear-float"> {/* Removed bg, added drop-cap related classes */}
-                  <p className="drop-cap">{answer}</p>
-                </div>
+                <ParagraphRenderer text={answer} useDropCap={false} />
               </>
             )}
-            {!question && !answer && <div>暂无原文或续写内容。</div>}
+            {!question && !answer && <div className="text-foreground/80">暂无原文或续写内容。</div>}
           </CardContent>
         </Card>
       </TabsContent>
@@ -139,7 +158,7 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
       <TabsContent value="score">
         <Card>
           <CardHeader className="flex flex-row items-center gap-2">
-            <RadarIcon className="h-5 w-5 text-primary" /> {/* Icon size adjusted */}
+            <RadarIcon className="h-5 w-5 text-primary" />
             <CardTitle>评分维度解析</CardTitle>
           </CardHeader>
           <CardContent>
@@ -147,13 +166,13 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
               <div className="space-y-8">
                 <div>
                   <SectionTitle className="text-center mb-4">综合得分雷达图</SectionTitle>
-                  <div className="h-[300px] w-full">
+                  <div className="h-[300px] w-full sm:h-[350px] md:h-[400px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <ChartContainer
                         config={chartConfig}
-                        className="mx-auto aspect-square max-h-[300px]"
+                        className="mx-auto aspect-square max-h-[400px]"
                       >
-                        <RadarChart data={radarData}>
+                        <RadarChart data={radarData} margin={{ top: 20, right: 30, bottom: 20, left: 30 }}>
                           <PolarGrid />
                           <ChartTooltip
                             cursor={false}
@@ -161,7 +180,8 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
                           />
                           <PolarAngleAxis
                             dataKey="dimension"
-                            tick={{ fill: "currentColor", fontSize: 12 }}
+                            tick={{ fill: "currentColor", fontSize: 11 }}
+                            tickFormatter={(value) => value.length > 5 ? (value.match(/.{1,5}/g)?.join('\n') || value) : value}
                           />
                           <RechartsRadar
                             name="得分"
@@ -186,7 +206,6 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
                         className="flex flex-col gap-2 border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow"
                       >
                         <div className="flex items-center justify-between">
-                          {/* Removed Badge, using simple span */}
                           <span className="text-base font-medium text-foreground">
                             {scoreLabels[key] || key}
                           </span>
@@ -197,7 +216,7 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
                           )}
                         </div>
                         {score_dimensions[key]?.explaination && (
-                          <div className="text-sm text-muted-foreground pt-2 border-t mt-2">
+                          <div className="text-sm text-foreground/80 pt-2 border-t mt-2">
                             {score_dimensions[key].explaination}
                           </div>
                         )}
@@ -207,7 +226,7 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
                 </div>
               </div>
             ) : (
-              <div>暂无评分维度信息。</div>
+              <div className="text-foreground/80">暂无评分维度信息。</div>
             )}
           </CardContent>
         </Card>
@@ -224,14 +243,14 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
             {preface?.content && (
               <>
                 <SectionTitle>前言概述</SectionTitle>
-                <p className="text-muted-foreground whitespace-pre-line">{preface.content}</p>
+                <p className="text-foreground/90 whitespace-pre-line">{preface.content}</p>
                 <Separator className="my-4" />
               </>
             )}
             {Array.isArray(guiding_problems) && guiding_problems.length > 0 && (
               <>
                 <SectionTitle>关键问题导入</SectionTitle>
-                <ol className="list-decimal ml-6 space-y-2">
+                <ol className="list-decimal ml-6 space-y-2 text-foreground/90">
                   {guiding_problems.map(
                     (item: { question: string }, idx: number) => (
                       <li key={idx}><span className="font-medium">{item.question}</span></li>
@@ -244,16 +263,22 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
             {Array.isArray(paragraph_analysis) && paragraph_analysis.length > 0 && (
               <>
                 <SectionTitle>原文段落解析</SectionTitle>
-                <ul className="space-y-3">
+                <ul className="space-y-4">
                   {paragraph_analysis.map(
                     (item: { original_text: string; interpretation: string }, idx: number) => (
-                      <li key={idx} className="p-3 border rounded-md">
-                        <p className="font-medium text-primary mb-1">原文片段:</p>
-                        <blockquote className="pl-3 italic border-l-2 border-primary-foreground text-muted-foreground mb-2">
-                          {item.original_text}
-                        </blockquote>
-                        <p className="font-medium text-green-700 dark:text-green-500 mb-1">解析:</p>
-                        <p className="text-sm">{item.interpretation}</p>
+                      <li key={idx} className="bg-card p-4 border rounded-lg shadow-sm space-y-2">
+                        <div>
+                          <p className="font-semibold text-primary mb-1">原文片段:</p>
+                          <blockquote className="pl-4 italic border-l-4 border-accent text-foreground/90 py-2 bg-muted/30 rounded-r-md">
+                            {item.original_text}
+                          </blockquote>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-primary mb-1">
+                            解析:
+                          </p>
+                          <p className="text-sm text-foreground/90">{item.interpretation}</p>
+                        </div>
                       </li>
                     )
                   )}
@@ -264,12 +289,12 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
             {Array.isArray(guiding_problems) && guiding_problems.length > 0 && (
               <>
                 <SectionTitle>关键问题解答</SectionTitle>
-                <ol className="list-decimal ml-6 space-y-3">
+                <ol className="list-decimal ml-6 space-y-3 text-foreground/90">
                   {guiding_problems.map(
                     (item: { question: string; answer?: string }, idx: number) => (
                       <li key={idx}>
                         <p className="font-medium">{item.question}</p>
-                        {item.answer && <p className="text-sm text-muted-foreground mt-1 whitespace-pre-line">{item.answer}</p>}
+                        {item.answer && <p className="text-sm text-foreground/80 mt-1 whitespace-pre-line">{item.answer}</p>}
                       </li>
                     )
                   )}
@@ -280,13 +305,13 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
             {writing_framework_construction?.sections?.length > 0 && (
               <>
                 <SectionTitle>续写框架构建</SectionTitle>
-                <ol className="list-decimal ml-6 space-y-2">
+                <ol className="list-decimal ml-6 space-y-2 text-foreground/90">
                   {writing_framework_construction.sections.map(
                     (section: { title?: string, points: string[] }, idx: number) => (
                       <li key={idx}>
                         {section.title && <p className="font-medium">{section.title}</p>}
                         {Array.isArray(section.points) && section.points.length > 0 && (
-                          <ul className="list-disc ml-5 mt-1 text-sm text-muted-foreground">
+                          <ul className="list-disc ml-5 mt-1 text-sm text-foreground/80">
                             {section.points.map((point: string, i: number) => <li key={i}>{point}</li>)}
                           </ul>
                         )}
@@ -297,7 +322,7 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
               </>
             )}
             {(!preface?.content && (!guiding_problems || guiding_problems.length === 0) && (!paragraph_analysis || paragraph_analysis.length === 0) && (!writing_framework_construction?.sections || writing_framework_construction.sections.length === 0)) && (
-              <div>暂无写作解析信息。</div>
+              <div className="text-foreground/80">暂无写作解析信息。</div>
             )}
           </CardContent>
         </Card>
@@ -322,9 +347,22 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
                         <ul className="space-y-3">
                           {topic.vocabulary.map((v: any, i: number) => (
                             <li key={i} className="p-3 border rounded-md">
-                              <p><strong className="text-primary">{v.word}</strong> {v.chinese_meaning && <span className="text-sm text-muted-foreground">({v.chinese_meaning})</span>}</p>
-                              {v.explaination && <p className="text-sm my-1">{v.explaination}</p>}
-                              {v.example_sentence && <p className="text-xs text-gray-500 dark:text-gray-400 italic">e.g.: {v.example_sentence}</p>}
+                              <p><strong className="text-primary">{v.word}</strong></p>
+                              {v.explaination && (
+                                <p className="text-sm my-1 text-foreground/90">
+                                  {v.explaination}
+                                  {v.chinese_meaning && <span className="text-sm text-foreground/80"> ({v.chinese_meaning})</span>}
+                                </p>
+                              )}
+                              {!v.explaination && v.chinese_meaning && (
+                                <p className="text-sm my-1 text-foreground/80">({v.chinese_meaning})</p>
+                              )}
+                              {v.example_sentence && (
+                                <div className="mt-1 flex items-start text-xs text-foreground/70">
+                                  <span className="font-semibold mr-1.5 opacity-80 shrink-0">例句:</span>
+                                  <span className="italic">{v.example_sentence}</span>
+                                </div>
+                              )}
                             </li>
                           ))}
                         </ul>
@@ -333,21 +371,29 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
                     {Array.isArray(topic.phrases) && topic.phrases.length > 0 && (
                       <>
                         <SubSectionTitle>常用短语</SubSectionTitle>
-                        {/* Changed ul styling to match vocabulary for consistency */}
                         <ul className="space-y-3">
                           {topic.phrases.map((p: any, i: number) => (
                             <li key={i} className="p-3 border rounded-md">
                               {typeof p === 'object' && p !== null ? (
                                 <>
-                                  <p>
-                                    <strong className="text-primary">{p.phrase}</strong>
-                                    {p.chinese_meaning && <span className="text-sm text-muted-foreground"> ({p.chinese_meaning})</span>}
-                                  </p>
-                                  {p.explaination && <p className="text-sm my-1">{p.explaination}</p>}
-                                  {p.example_sentence && <p className="text-xs text-gray-500 dark:text-gray-400 italic">e.g.: {p.example_sentence}</p>}
+                                  <p><strong className="text-primary">{p.phrase}</strong></p>
+                                  {p.explaination && (
+                                    <p className="text-sm my-1 text-foreground/90">
+                                      {p.explaination}
+                                      {p.chinese_meaning && <span className="text-sm text-foreground/80"> ({p.chinese_meaning})</span>}
+                                    </p>
+                                  )}
+                                  {!p.explaination && p.chinese_meaning && (
+                                    <p className="text-sm my-1 text-foreground/80">({p.chinese_meaning})</p>
+                                  )}
+                                  {p.example_sentence && (
+                                    <div className="mt-1 flex items-start text-xs text-foreground/70">
+                                      <span className="font-semibold mr-1.5 opacity-80 shrink-0">例句:</span>
+                                      <span className="italic">{p.example_sentence}</span>
+                                    </div>
+                                  )}
                                 </>
                               ) : (
-                                // Fallback for simple string phrases
                                 <p><strong className="text-primary">{String(p)}</strong></p>
                               )}
                             </li>
@@ -358,8 +404,7 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
                     {Array.isArray(topic.useful_sentences) && topic.useful_sentences.length > 0 && (
                       <>
                         <SubSectionTitle>实用句型</SubSectionTitle>
-                        {/* Assuming useful_sentences are still strings. If they also change, this needs similar adaptation. */}
-                        <ul className="list-disc ml-6 space-y-1 text-sm">
+                        <ul className="list-disc ml-6 space-y-1 text-sm text-foreground/90">
                           {topic.useful_sentences.map((s: any, i: number) => <li key={i}>{s}</li>)}
                         </ul>
                       </>
@@ -369,7 +414,7 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
                 )
               )
             ) : (
-              <div>暂无话题语料信息。</div>
+              <div className="text-foreground/80">暂无话题语料信息。</div>
             )}
           </CardContent>
         </Card>
@@ -386,16 +431,35 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
             {Array.isArray(vocabulary_upgradation) && vocabulary_upgradation.length > 0 && (
               <>
                 <SectionTitle>词汇升级</SectionTitle>
-                <ul className="space-y-3">
-                  {vocabulary_upgradation.map((item, idx) => (
-                    <li key={idx} className="p-3 border rounded-md">
-                      <p>
-                        <span className="font-medium text-gray-600 dark:text-gray-400">{item.original_word}</span> → <strong className="text-green-700 dark:text-green-500">{item.upgraded_word}</strong>
-                        <span className="text-sm text-muted-foreground ml-2">({item.chinese_meaning})</span>
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 italic mt-1">e.g.: {item.example_sentence}</p>
-                    </li>
-                  ))}
+                <ul className="space-y-4">
+                  {vocabulary_upgradation.map((item, idx) => {
+                    const contextParts = findContextSimple(answer, item.original_word);
+                    return (
+                      <li key={idx} className="p-3 border rounded-md">
+                        <p>
+                          <span className="font-medium text-foreground/80">{item.original_word}</span> → <strong className="text-green-600 dark:text-green-500">{item.upgraded_word}</strong>
+                        </p>
+                        {item.english_explanation && <p className="text-sm text-foreground/90 mt-1">{item.english_explanation}</p>}
+                        {item.chinese_meaning && <p className="text-sm text-foreground/80 mt-0.5">({item.chinese_meaning})</p>}
+                        {item.example_sentence && (
+                          <div className="mt-1 flex items-start text-xs text-foreground/70">
+                            <span className="font-semibold mr-1.5 opacity-80 shrink-0">例句:</span>
+                            <span className="italic">{item.example_sentence}</span>
+                          </div>
+                        )}
+                        {contextParts && (
+                          <div className="mt-2 text-xs text-foreground/70 p-2 bg-muted/40 rounded">
+                            <p className="font-semibold mb-0.5 text-foreground/80">原文片段参考:</p>
+                            <p className="italic">
+                              {contextParts.prefix}
+                              <mark className="bg-primary/20 text-primary font-semibold px-0.5 rounded not-italic">{contextParts.match}</mark>
+                              {contextParts.suffix}
+                            </p>
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
                 <Separator className="my-6" />
               </>
@@ -403,17 +467,36 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
             {Array.isArray(phrase_upgradation) && phrase_upgradation.length > 0 && (
               <>
                 <SectionTitle>短语升级</SectionTitle>
-                <ul className="space-y-3">
-                  {phrase_upgradation.map((item, idx) => (
-                    <li key={idx} className="p-3 border rounded-md">
-                      <p className="font-medium text-gray-600 dark:text-gray-400">{item.original_phrase}</p>
-                      <p className="my-1">→ <strong className="text-green-700 dark:text-green-500">{item.upgraded_phrase}</strong></p>
-                      <p className="text-sm text-muted-foreground">
-                        {item.english_explanation} ({item.chinese_meaning})
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 italic mt-1">e.g.: {item.example_sentence}</p>
-                    </li>
-                  ))}
+                <ul className="space-y-4">
+                  {phrase_upgradation.map((item, idx) => {
+                    const contextParts = findContextSimple(answer, item.original_phrase);
+                    return (
+                      <li key={idx} className="p-3 border rounded-md">
+                        <p className="font-medium text-foreground/80">{item.original_phrase}</p>
+                        <p className="my-1">→ <strong className="text-green-600 dark:text-green-500">{item.upgraded_phrase}</strong></p>
+                        <p className="text-sm text-foreground/90">
+                          {item.english_explanation}
+                          {item.chinese_meaning && <span className="text-foreground/80"> ({item.chinese_meaning})</span>}
+                        </p>
+                        {item.example_sentence && (
+                           <div className="mt-1 flex items-start text-xs text-foreground/70">
+                            <span className="font-semibold mr-1.5 opacity-80 shrink-0">例句:</span>
+                            <span className="italic">{item.example_sentence}</span>
+                          </div>
+                        )}
+                        {contextParts && (
+                          <div className="mt-2 text-xs text-foreground/70 p-2 bg-muted/40 rounded">
+                            <p className="font-semibold mb-0.5 text-foreground/80">原文片段参考:</p>
+                             <p className="italic">
+                              {contextParts.prefix}
+                              <mark className="bg-primary/20 text-primary font-semibold px-0.5 rounded not-italic">{contextParts.match}</mark>
+                              {contextParts.suffix}
+                            </p>
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
                 <Separator className="my-6" />
               </>
@@ -421,14 +504,33 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
             {Array.isArray(sentence_upgradation) && sentence_upgradation.length > 0 && (
               <>
                 <SectionTitle>句型升级</SectionTitle>
-                <ul className="space-y-3">
-                  {sentence_upgradation.map((item, idx) => (
-                    <li key={idx} className="p-3 border rounded-md">
-                      <p className="font-medium text-gray-600 dark:text-gray-400">{item.original_sentence}</p>
-                      <p className="my-1">→ <strong className="text-green-700 dark:text-green-500">{item.upgraded_sentence}</strong></p>
-                      <p className="text-sm text-muted-foreground">{item.explanation}</p>
-                    </li>
-                  ))}
+                <ul className="space-y-4">
+                  {sentence_upgradation.map((item, idx) => {
+                    const contextParts = findContextSimple(answer, item.original_sentence);
+                    return (
+                      <li key={idx} className="p-3 border rounded-md">
+                        <p className="font-medium text-foreground/80">{item.original_sentence}</p>
+                        <p className="my-1">→ <strong className="text-green-600 dark:text-green-500">{item.upgraded_sentence}</strong></p>
+                        <p className="text-sm text-foreground/90">{item.explanation}</p>
+                        {item.example_sentence && (
+                           <div className="mt-1 flex items-start text-xs text-foreground/70">
+                            <span className="font-semibold mr-1.5 opacity-80 shrink-0">例句:</span>
+                            <span className="italic">{item.example_sentence}</span>
+                          </div>
+                        )}
+                        {contextParts && (
+                          <div className="mt-2 text-xs text-foreground/70 p-2 bg-muted/40 rounded">
+                            <p className="font-semibold mb-0.5 text-foreground/80">原文片段参考:</p>
+                             <p className="italic">
+                              {contextParts.prefix}
+                              <mark className="bg-primary/20 text-primary font-semibold px-0.5 rounded not-italic">{contextParts.match}</mark>
+                              {contextParts.suffix}
+                            </p>
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
                 <Separator className="my-6" />
               </>
@@ -436,19 +538,38 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
             {Array.isArray(detail_description_upgradation) && detail_description_upgradation.length > 0 && (
               <>
                 <SectionTitle>细节描写升级</SectionTitle>
-                <ul className="space-y-3">
-                  {detail_description_upgradation.map((item, idx) => (
-                    <li key={idx} className="p-3 border rounded-md">
-                      <p className="font-medium text-gray-600 dark:text-gray-400">{item.original_description}</p>
-                      <p className="my-1">→ <strong className="text-green-700 dark:text-green-500">{item.upgraded_description}</strong></p>
-                      <p className="text-sm text-muted-foreground">{item.explanation}</p>
-                    </li>
-                  ))}
+                <ul className="space-y-4">
+                  {detail_description_upgradation.map((item, idx) => {
+                    const contextParts = findContextSimple(answer, item.original_description);
+                    return (
+                      <li key={idx} className="p-3 border rounded-md">
+                        <p className="font-medium text-foreground/80">{item.original_description}</p>
+                        <p className="my-1">→ <strong className="text-green-600 dark:text-green-500">{item.upgraded_description}</strong></p>
+                        <p className="text-sm text-foreground/90">{item.explanation}</p>
+                        {item.example_sentence && (
+                          <div className="mt-1 flex items-start text-xs text-foreground/70">
+                            <span className="font-semibold mr-1.5 opacity-80 shrink-0">例句:</span>
+                            <span className="italic">{item.example_sentence}</span>
+                          </div>
+                        )}
+                        {contextParts && (
+                          <div className="mt-2 text-xs text-foreground/70 p-2 bg-muted/40 rounded">
+                            <p className="font-semibold mb-0.5 text-foreground/80">原文片段参考:</p>
+                             <p className="italic">
+                              {contextParts.prefix}
+                              <mark className="bg-primary/20 text-primary font-semibold px-0.5 rounded not-italic">{contextParts.match}</mark>
+                              {contextParts.suffix}
+                            </p>
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               </>
             )}
             {(!vocabulary_upgradation || vocabulary_upgradation.length === 0) && (!phrase_upgradation || phrase_upgradation.length === 0) && (!sentence_upgradation || sentence_upgradation.length === 0) && (!detail_description_upgradation || detail_description_upgradation.length === 0) && (
-              <div>暂无续写升级建议。</div>
+              <div className="text-foreground/80">暂无续写升级建议。</div>
             )}
           </CardContent>
         </Card>
@@ -461,9 +582,8 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
             <FileSignature className="h-5 w-5 text-primary" />
             <CardTitle>升格文纯享版</CardTitle>
           </CardHeader>
-          {/* CardContent for pure upgrade now has a dark background and white text */}
           <CardContent className="text-slate-100 rounded-b-lg p-6">
-            <div className="flex items-center space-x-6 mb-6">
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mb-6">
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="showOriginalPure"
@@ -489,26 +609,25 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
             </div>
 
             {Array.isArray(pureUpgradation) && pureUpgradation.length > 0 ? (
-              <div className="leading-relaxed text-base space-y-1">
+              <div className="leading-relaxed text-base font-serif">
                 {pureUpgradation.map(
                   (item: { sentence: string; upgradation: string; comment: string; }, idx: number) => (
                     <React.Fragment key={idx}>
-                      {showOriginalInPureUpgrade && (
-                        <span className="block text-xs text-slate-400 italic mb-0.5 pl-1">
-                          (原文: {item.sentence})
+                      {showOriginalInPureUpgrade && item.sentence && (
+                        <span className="text-xs text-slate-400 italic mr-1 opacity-90">
+                          ({item.sentence})
                         </span>
                       )}
                       <span
-                        className="text-slate-50 font-medium" // Main upgraded text is brighter
-                      // title={showOriginalInPureUpgrade ? `原文: ${item.sentence}` : undefined} // Alternative way to show original
+                        className="text-slate-50 font-medium"
                       >
                         {item.upgradation}
                       </span>
                       {showAnnotationsInPureUpgrade && item.comment && (
                         <span
-                          className="ml-1.5 mr-0.5 text-[0.7rem] leading-none text-cyan-300 bg-cyan-800/60 ring-1 ring-cyan-700/70 px-1.5 py-0.5 rounded-sm align-baseline"
+                          className="ml-1 mr-0.5 text-[0.7rem] leading-none text-sky-300 italic px-0.5 align-baseline"
                         >
-                          {item.comment}
+                          ({item.comment})
                         </span>
                       )}
                       {' '}

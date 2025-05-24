@@ -448,3 +448,13 @@
     --chart-5: 340 75% 55%;
     }
 }
+
+.drop-cap::first-letter {
+  font-size: 2.8em; /* Adjust size as needed */
+  font-weight: bold;
+  float: left;
+  margin-right: 0.07em; /* Adjust spacing */
+  line-height: 0.75; /* Adjust line height for alignment */
+  padding-top: 0.08em; /* Fine-tune vertical alignment */
+  font-family: inherit; /* Or a specific serif font */
+}
