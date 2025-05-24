@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // utils/generate-continuation.ts
 import { streamText } from 'ai';
 import { parse } from 'best-effort-json-parser';
@@ -9,34 +10,11 @@ import {
   getEnglishContinuationPurePrompt,
   getEnglishContinuationScorePrompt,
   getEnglishContinuationUpgradationPrompt,
-  getInterpretationPrompt,
-  INTERPRETATION_SECTIONS,
-  INTERPRETATION_SECTIONS_MAP,
-  INTERPRETATION_SECTIONS_ORDER,
-  UPGRADATION_SECTIONS
-} from './correction-prompt';
-import crypto from 'crypto';
-import { v4 as uuidv4 } from 'uuid';
-import fetch from 'node-fetch'; // Use node-fetch for compatibility, or native fetch if available in your Node.js version
-import { URLSearchParams } from 'url'; // Needed to construct form data
+  getInterpretationPrompt} from './correction-prompt';
 
 // Helper function to calculate the 'input' parameter for Youdao signature
-function getYoudaoInput(text: string): string {
-  if (!text) return '';
-  const len = text.length;
-  if (len <= 20) {
-    return text;
-  }
-  // input=多个q拼接后前10个字符 + 多个q拼接长度 + 多个q拼接后十个字符
-  return text.substring(0, 10) + len + text.substring(len - 10);
-}
 
 // Helper function to calculate the Youdao v3 signature
-function calculateYoudaoSign(appKey: string, input: string, salt: string, curtime: string, appSecret: string): string {
-  // signType=v3，sha256(应用 ID+input+salt+curtime+密钥)
-  const signStr = appKey + input + salt + curtime + appSecret;
-  return crypto.createHash('sha256').update(signStr).digest('hex');
-}
 
 
 /**
@@ -119,7 +97,7 @@ export async function generateScore(
 
     if (!json || typeof json !== 'object' || !json.分项评分) {
       console.error("Parsed JSON missing expected '分项评分' key:", json);
-      throw new Error("Parsed JSON does not have the expected structure ('分项评分' key missing).");
+      throw new Error("Parsed JSON does not have the expected structure ('分项评分' key missing).\n");
     }
 
     // 组装score_dimensions
@@ -128,35 +106,38 @@ export async function generateScore(
     for (const zhKey in finalCategories) {
       if (Object.prototype.hasOwnProperty.call(finalCategories, zhKey)) {
         const enKey = keyMap[zhKey] || zhKey;
-        // 兼容AI返回的结构
-        let score = 0;
-        let explaination = '';
+        let totalScore = 0;
+        const explanations: string[] = [];
         const section = finalCategories[zhKey];
+
         if (typeof section === 'object' && section !== null) {
-          // 取第一个子项（如有）
-          const subKeys = Object.keys(section);
-          if (subKeys.length > 0) {
-            const sub = section[subKeys[0]];
-            score = typeof sub.score === 'number' ? sub.score : Number(sub.score) || 0;
-            explaination = sub.reason || sub.explaination || '';
+          for (const subKey in section) {
+            if (Object.prototype.hasOwnProperty.call(section, subKey)) {
+              const sub = section[subKey];
+              const score = typeof sub.score === 'number' ? sub.score : Number(sub.score) || 0;
+              const explanation = sub.reason || sub.explaination || '';
+              totalScore += score;
+              explanations.push(explanation);
+            }
           }
         } else if (typeof section === 'string') {
-          explaination = section;
+          explanations.push(section);
         }
+
         score_dimensions[enKey] = {
-          score,
-          explaination
+          score: totalScore,
+          explaination: explanations.join('；')
         };
       }
     }
 
     return { score_dimensions };
-  } catch (error) {
-    console.error("Error generating score:", error);
+  } catch (err) {
+    console.error("Error generating score:", err);
     if (fullResponseText) {
       console.error("Partial AI response received before error:", fullResponseText);
     }
-    throw error;
+    throw err;
   }
 }
 
@@ -353,18 +334,20 @@ export async function generatePureUpgradation(
 }
 
 /**
- * Generates an interpretation of the essay topic, suggesting key themes, perspectives, keywords, etc.
+ * Generates a specific part of the interpretation of the essay topic.
  * @param originalText The original essay topic text.
  * @param tone The tone parameter.
  * @param model The model parameter.
- * @returns A Promise resolving to an object containing the parsed JSON and the generated Markdown content, or null if generation fails.
+ * @param targetSection The specific section of the interpretation to generate.
+ * @returns A Promise resolving to an object containing the parsed JSON for the requested section, or null if generation fails.
  */
-export async function generateInterpretation(
+export async function generateInterpretationPart(
   originalText: string,
   tone: string,
-  model: string
-): Promise<{ interpretation: any } | null> {
-  console.log("Initiating topic interpretation generation...");
+  model: string,
+  targetSection: "preamble" | "introductoryQuestionsAndAnswers" | "paragraphAnalysis" | "writingOutline" | "extendedVocabulary"
+): Promise<any | null> { // Return type is now 'any' as it's a part of the full structure
+  console.log(`Initiating topic interpretation generation for section: ${targetSection}...`);
 
   let fullResponseText = '';
 
@@ -372,18 +355,18 @@ export async function generateInterpretation(
     const aiModel = getModelByName(model);
     const tonePrompt = getTonePrompt(tone);
 
-    console.log("--- Streaming AI response for topic interpretation ---");
+    console.log(`--- Streaming AI response for topic interpretation section: ${targetSection} ---`);
 
     const streamResult = await streamText({
       model: aiModel,
       messages: [
         {
           role: 'system',
-          content: getInterpretationPrompt(originalText, tonePrompt),
+          content: getInterpretationPrompt(originalText, tonePrompt, targetSection), // Pass targetSection
         },
       ],
-      maxTokens: 6144,
-      temperature: 0.8,
+      maxTokens: 8192, // Increased maxTokens as we are asking for more detailed content per section
+      temperature: 0.7, // Slightly lower temp for more predictable JSON structure
     });
 
     for await (const part of streamResult.fullStream) {
@@ -394,91 +377,37 @@ export async function generateInterpretation(
       }
     }
 
-    console.log("\n--- End of AI response stream for topic interpretation ---");
+    console.log(`\n--- End of AI response stream for topic interpretation section: ${targetSection} ---`);
 
     if (!fullResponseText.trim()) {
-      console.warn("AI response for topic interpretation was empty or only whitespace.");
+      console.warn(`AI response for topic interpretation section ${targetSection} was empty or only whitespace.`);
       return null;
     }
 
     const startObject = fullResponseText.indexOf('{');
     const endObject = fullResponseText.lastIndexOf('}');
     if (startObject === -1 || endObject === -1 || startObject >= endObject) {
-      console.error("Invalid JSON structure received for interpretation (no valid object found):", fullResponseText);
+      console.error(`Invalid JSON structure received for interpretation section ${targetSection} (no valid object found):`, fullResponseText);
       return null;
     }
     const jsonString = fullResponseText.substring(startObject, endObject + 1);
 
-    let json: any;
+    let parsedJson: any;
     try {
-      json = JSON.parse(jsonString);
-      console.log('Parsed JSON:', json);
+      parsedJson = JSON.parse(jsonString);
+      console.log(`Parsed JSON for section ${targetSection}:`, parsedJson);
     } catch (parseError) {
-      console.error("Failed to parse JSON for interpretation:", parseError);
+      console.error(`Failed to parse JSON for interpretation section ${targetSection}:`, parseError);
       console.error("Received JSON string:", jsonString);
       return null;
     }
 
-    // 1. preface
-    const preface = { content: json.preamble || '' };
+    // The function now returns the parsed JSON part directly.
+    // The calling function (in function.ts) will be responsible for assembling these parts.
+    return parsedJson;
 
-    // 2. guiding_problems
-    let guiding_problems: { question: string, answer: string }[] = [];
-    if (Array.isArray(json.introductoryQuestions) && Array.isArray(json.questionAnswers)) {
-      // 按顺序配对
-      for (let i = 0; i < json.introductoryQuestions.length; i++) {
-        const question = json.introductoryQuestions[i];
-        const answerObj = json.questionAnswers[i];
-        guiding_problems.push({
-          question: typeof question === 'string' ? question : '',
-          answer: answerObj && typeof answerObj.answer === 'string' ? answerObj.answer : ''
-        });
-      }
-    }
-
-    // 3. paragraph_analysis
-    let paragraph_analysis: { original_text: string, interpretation: string }[] = [];
-    if (Array.isArray(json.paragraphAnalysis)) {
-      paragraph_analysis = json.paragraphAnalysis.map((item: any) => ({
-        original_text: item.originText || '',
-        interpretation: item.details || ''
-      }));
-    }
-
-    // 4. writing_framework_construction.sections
-    let writing_framework_construction = { sections: [] as { points: string[] }[] };
-    if (typeof json.writingOutline === 'object' && json.writingOutline !== null) {
-      for (const key of Object.keys(json.writingOutline)) {
-        const pointsArr = Array.isArray(json.writingOutline[key]) ? json.writingOutline[key] : [];
-        writing_framework_construction.sections.push({ points: pointsArr });
-      }
-    }
-
-    // 5. vocabulary_and_phrases_for_continuation.topics
-    let vocabulary_and_phrases_for_continuation = { topics: [] as any[] };
-    if (typeof json.extendedVocabulary === 'object' && json.extendedVocabulary !== null) {
-      for (const topicName in json.extendedVocabulary) {
-        const topic = json.extendedVocabulary[topicName];
-        vocabulary_and_phrases_for_continuation.topics.push({
-          topic_name: topicName,
-          vocabulary: Array.isArray(topic.vocabulary) ? topic.vocabulary : [],
-          phrases: Array.isArray(topic.phrases) ? topic.phrases : [],
-          useful_sentences: Array.isArray(topic.sentences) ? topic.sentences : []
-        });
-      }
-    }
-
-    const interpretation = {
-      preface,
-      guiding_problems,
-      paragraph_analysis,
-      writing_framework_construction,
-      vocabulary_and_phrases_for_continuation
-    };
-
-    return { interpretation };
   } catch (error) {
-    console.error("Error generating topic interpretation:", error);
+    console.error(`Error generating topic interpretation for section ${targetSection}:`, error);
     return null;
   }
 }

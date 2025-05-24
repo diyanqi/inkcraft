@@ -23,7 +23,6 @@ export default function DashboardLayout({
           height: "98vh", // 固定高度
           display: "flex",
           flexDirection: "column",
-          backgroundColor: "transparent", // 确保背景透明
         }}
       >
         <SiteHeader />

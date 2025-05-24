@@ -217,7 +217,7 @@ export default function CreatePage() {
             referenceText: "",
             essayType: "gaokao-english-continuation",
             essayText: "",
-            model: "qwen",
+            model: "gemini",
             tone: "default"
         }
     });

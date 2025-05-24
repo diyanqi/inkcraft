@@ -291,68 +291,104 @@ export const INTERPRETATION_SECTIONS_ORDER: string[] = [
   "extendedVocabulary",
 ];
 
-export function getInterpretationPrompt(originalText: string, tonePrompt: string) {
-  return `你是一个专业的英语作文题目分析师，擅长将复杂的作文题目分解成易于理解和写作的部分。你的任务是根据用户提供的作文题目，生成一份详细的解析，帮助用户理解题目并规划写作。你的输出只能是以JSON格式展现的解析内容，不允许包含任何其他说明、注释或格式。
+export function getInterpretationPrompt(
+  originalText: string,
+  tonePrompt: string,
+  targetSection: "preamble" | "introductoryQuestionsAndAnswers" | "paragraphAnalysis" | "writingOutline" | "extendedVocabulary"
+) {
+  let specificInstruction = "";
+  let exampleJsonTargetComment = "";
 
-你需要严格按照以下JSON格式输出，确保所有字段都存在，即使某些内容较少：
+  switch (targetSection) {
+    case "preamble":
+      specificInstruction = "Your task is to generate ONLY the 'preamble' part of the JSON structure. Ensure your response for 'preamble' is detailed, insightful, and substantial.";
+      exampleJsonTargetComment = "// AI should ONLY output: { \"preamble\": \"...\" }";
+      break;
+    case "introductoryQuestionsAndAnswers":
+      specificInstruction = "Your task is to generate ONLY the 'introductoryQuestions' and 'questionAnswers' parts of the JSON structure. Ensure these are comprehensive and deeply analytical.";
+      exampleJsonTargetComment = "// AI should ONLY output: { \"introductoryQuestions\": [...], \"questionAnswers\": [...] }";
+      break;
+    case "paragraphAnalysis":
+      specificInstruction = "Your task is to generate ONLY the 'paragraphAnalysis' part of the JSON structure. Provide in-depth analysis for each paragraph.";
+      exampleJsonTargetComment = "// AI should ONLY output: { \"paragraphAnalysis\": [...] }";
+      break;
+    case "writingOutline":
+      specificInstruction = "Your task is to generate ONLY the 'writingOutline' part of the JSON structure. Ensure the outline is well-structured and provides clear guidance for writing.";
+      exampleJsonTargetComment = "// AI should ONLY output: { \"writingOutline\": {...} }";
+      break;
+    case "extendedVocabulary":
+      specificInstruction = "Your task is to generate ONLY the 'extendedVocabulary' part of the JSON structure. Include a rich selection of words, phrases, and sentences for each topic.";
+      exampleJsonTargetComment = "// AI should ONLY output: { \"extendedVocabulary\": {...} }";
+      break;
+  }
 
+  return `你是一个专业的英语作文题目分析师，擅长将复杂的作文题目分解成易于理解和写作的部分。
+${specificInstruction}
+你的输出只能是以JSON格式展现的所请求部分的解析内容，不允许包含任何其他说明、注释或格式。
+
+你需要严格按照以下完整JSON结构的对应部分输出。确保所有请求的字段都存在，并且内容充实、详尽。
+${exampleJsonTargetComment}
+
+完整的JSON结构参考如下:
 {
-  "preamble": "由作文题目得到的备考提示、出题评价或人生感悟。请将这些内容连接成一个自然的段落，不要分点。",
+  "preamble": "由作文题目得到的备考提示、出题评价或人生感悟，连接成自然的段落，不少于300字。",
   "introductoryQuestions": [
-    "提出5到7个关键问题，帮助理解和分析题目。这些问题必须包括：主人公的性格特征是什么？题目的when, who, where, what, why分别是什么？如何分析情节、内容、矛盾、续写情节的占比、线索？最后的主旨是什么，该如何升华？请将每个问题作为数组的一个元素，不要在问题内部换行或分点。",
+    "提出5到7个关键问题，帮助理解和分析题目，包括主人公性格、时间、地点、事件、原因、情节、主旨等。"
     // ... 5-7个问题
   ],
   "paragraphAnalysis": [
     {
-      "originText": "原文引用",
-      "details": "对原文某一段进行简要翻译。如果必要，补充相关的文化背景信息。然后解读该段落中的关键词和细节。接着分析该段落有哪些协同点，即后面续写中可以利用的点，并说明如何使用这些点。最后总结该段落值得学习的语料和语言点，并拓展相关的词汇和表达。将所有内容组织成一个自然的段落，不要分点。",
-      // 就这两个键，不能有其他的键
+      "originText": "原文引用 (分析原文的每一段，至少5-7段，原文段落少于5段，则细致分析每一句)",
+      "details": "简要翻译原文段落，补充文化背景信息，深入解读关键词和细节，分析内涵和外延，分析协同点及使用方法，总结语料和语言点，拓展词汇和表达，组织成自然的段落，不少于200字。"
+      // 分析内容全部只写在 details 字段中，不要创建新的字段
     }
-    // ... 对原文的每一段（共5到7段）进行同样格式的分析
+    // ... 对原文的每一段进行同样格式的分析
   ],
   "questionAnswers": [
     {
-      "question": "对应'introductoryQuestions'中的一个问题，请将问题原文复制到这里。",
-      "answer": "对该问题进行详细解答。请将解答内容连接成一个自然的段落，不要分点。"
+      "question": "对应'introductoryQuestions'中的一个问题。",
+      "answer": "对该问题进行详尽且深入的解答，连接成自然的段落，不少于150字。"
     }
     // ... 回答'introductoryQuestions'中的所有问题
   ],
   "writingOutline": {
     "第一段": [
-      "列出第一段的写作要点，使用'1.1 要点', '1.2 要点', '1.3 要点'等格式。",
-      // ... 3到4个要点
+      "列出第一段的写作要点，使用'1.1 要点'等格式，提供清晰、具体的指导。",
+      // ... 3到4个详细要点
     ],
     "第二段": [
-      "列出第二段的写作要点，使用'2.1 要点', '2.2 要点', '2.3 要点', '2.4 要点'等格式。",
-      // ... 3到4个要点
+      "列出第二段的写作要点，使用'2.1 要点'等格式，提供清晰、具体的指导。",
+      // ... 3到4个详细要点
     ]
-    // 注意：框架只需包含这两段
   },
   "extendedVocabulary": {
     "话题一: [请替换为具体话题名称]": {
       "vocabulary": [
         {
           "word": "widow",
-          "explaination": "a woman who has lost her spouse by death and has not remarried.",
+          "explaination": "解释词汇的含义和用法。",
           "chinese_meaning": "n. 寡妇",
-          "example_sentence": "Ross was a widow who was struggling to keep her upholstery business going when George Washington and his colleagues asked her to make a flag."
+          "example_sentence": "提供例句。"
         }
-        // ... 5到6个词汇及其解释
+        // ... 5到6个高质量词汇及其解释
       ],
       "phrases": [
         {
           "phrase": "phrase1",
-          "explaination": "explanation1",
+          "explaination": "解释短语的含义和用法。",
           "chinese_meaning": "中文释义1",
-          "example_sentence": "example sentence1"
+          "example_sentence": "提供例句。"
         },
-        "短语2"
-        // ... 3到4个短语
+        // ... 3到4个高质量短语
+        {
+          "phrase": "短语2",
+          "chinese_meaning": "中文释义2"
+        }
       ],
       "sentences": [
         "例句1",
         "例句2"
-        // ... 3到4个例句
+        // ... 3到4个高质量例句
       ]
     }
     // ... 最多包含2到3个话题
@@ -364,6 +400,5 @@ ${originalText}
 
 ${tonePrompt}
 
-请提供解析的JSON内容：
-请严格只输出JSON，不能有任何注释、代码块标记、markdown、自然语言说明。所有key都用双引号，内容如需引号请用转义。`
+请严格只输出所要求部分的JSON内容 (${targetSection})，不能有任何注释、代码块标记、markdown、自然语言说明。所有key都用双引号，内容如需引号请用转义。JSON内容必须严格符合上述对应部分的结构。`;
 }

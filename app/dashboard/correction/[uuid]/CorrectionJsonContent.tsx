@@ -1,9 +1,16 @@
-import React from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useState } from "react"; // Added useState
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Radar } from "lucide-react";
+import {
+  Radar as RadarIcon,
+  BookOpenText, // Icon for Origin
+  Lightbulb,    // Icon for Analysis
+  ListChecks,   // Icon for Topic Material
+  ArrowUpCircle, // Icon for Writing Upgrade
+  FileSignature, // Generic for Score (can be changed)
+} from "lucide-react";
 import {
   PolarAngleAxis,
   PolarGrid,
@@ -17,6 +24,8 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import { Checkbox } from "@/components/ui/checkbox"; // Added Checkbox
+import { Label } from "@/components/ui/label";       // Added Label
 
 const chartConfig = {
   desktop: {
@@ -25,35 +34,44 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
+const SectionTitle: React.FC<{ children: React.ReactNode, className?: string }> = ({ children, className }) => (
+  <h2 className={`text-xl font-semibold mt-6 mb-3 first:mt-0 ${className || ''}`}>
+    {children}
+  </h2>
+);
+
+const SubSectionTitle: React.FC<{ children: React.ReactNode, className?: string }> = ({ children, className }) => (
+  <h3 className={`text-lg font-medium mt-4 mb-2 ${className || ''}`}>
+    {children}
+  </h3>
+);
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default function CorrectionJsonContent({ data }: { data: any }) {
-  // Corrected destructuring based on the JSON structure
   const {
     question,
     answer,
     score_dimensions,
-    interpretation, // interpretation is an object
-    upgradation, // upgradation is an object
-    pureUpgradation, // pureUpgradation is an array at the top level
+    interpretation,
+    upgradation,
+    pureUpgradation,
   } = data;
 
-  // Destructure nested objects/arrays from interpretation and upgradation
   const {
     preface,
     guiding_problems,
     paragraph_analysis,
     writing_framework_construction,
     vocabulary_and_phrases_for_continuation,
-  } = interpretation || {}; // Use default empty object in case interpretation is null/undefined
+  } = interpretation || {};
 
   const {
     vocabulary_upgradation,
-    phrase_upgradation, // Add phrase_upgradation here
+    phrase_upgradation,
     sentence_upgradation,
     detail_description_upgradation,
-  } = upgradation || {}; // Use default empty object in case upgradation is null/undefined
+  } = upgradation || {};
 
-  // 评分维度处理
   const scoreKeys = Object.keys(score_dimensions || {});
   const scoreLabels: { [key: string]: string } = {
     relevance_and_accuracy: "相关性与准确性",
@@ -67,43 +85,52 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
     literary_competence_teacher_evaluation: "文学素养与教师评价",
   };
 
-  // 将评分维度数据转换为雷达图所需格式
   const radarData = scoreKeys.map((key) => ({
     dimension: scoreLabels[key] || key,
     score: score_dimensions[key]?.score || 0,
   }));
 
+  // State for pure_upgrade_text options
+  const [showOriginalInPureUpgrade, setShowOriginalInPureUpgrade] = useState(true);
+  const [showAnnotationsInPureUpgrade, setShowAnnotationsInPureUpgrade] = useState(true);
+
+
   return (
     <Tabs defaultValue="origin" className="w-full">
-      <TabsList className="mb-4">
+      <TabsList className="mb-4 grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6 h-auto">
         <TabsTrigger value="origin">原文与续写</TabsTrigger>
         <TabsTrigger value="score">评分维度</TabsTrigger>
         <TabsTrigger value="analysis">写作解析</TabsTrigger>
-        <TabsTrigger value="upgrade">表达升级</TabsTrigger>
+        <TabsTrigger value="topic_material">话题语料</TabsTrigger>
+        <TabsTrigger value="writing_upgrade">续写升级</TabsTrigger>
+        <TabsTrigger value="pure_upgrade_text">升格文纯享版</TabsTrigger>
       </TabsList>
 
       {/* Tab1: 原文与续写 */}
       <TabsContent value="origin">
         <Card>
-          <CardHeader>
-            <CardTitle>真题回顾</CardTitle>
+          <CardHeader className="flex flex-row items-center gap-2">
+            <BookOpenText className="h-5 w-5 text-primary" />
+            <CardTitle>原文与我的续写</CardTitle>
           </CardHeader>
           <CardContent>
-            {/* Added check for question */}
             {question && (
-              <div className="mb-4">
-                <span className="font-bold">题目</span>
-                <div className="whitespace-pre-line">{question}</div>
-              </div>
+              <>
+                <SectionTitle>真题回顾</SectionTitle>
+                <div className="whitespace-pre-line font-serif text-lg leading-relaxed p-1 clear-float"> {/* Removed bg, added drop-cap related classes */}
+                  <p className="drop-cap">{question}</p>
+                </div>
+              </>
             )}
-            <Separator />
-            {/* Added check for answer */}
             {answer && (
-              <div className="mt-4">
-                <span className="font-bold">我的续写</span>
-                <div className="whitespace-pre-line">{answer}</div>
-              </div>
+              <>
+                <SectionTitle className="mt-8">我的续写</SectionTitle>
+                <div className="whitespace-pre-line font-serif text-lg leading-relaxed p-1 clear-float"> {/* Removed bg, added drop-cap related classes */}
+                  <p className="drop-cap">{answer}</p>
+                </div>
+              </>
             )}
+            {!question && !answer && <div>暂无原文或续写内容。</div>}
           </CardContent>
         </Card>
       </TabsContent>
@@ -112,70 +139,71 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
       <TabsContent value="score">
         <Card>
           <CardHeader className="flex flex-row items-center gap-2">
-            <Radar className="text-primary" />
-            <CardTitle>评分维度</CardTitle>
+            <RadarIcon className="h-5 w-5 text-primary" /> {/* Icon size adjusted */}
+            <CardTitle>评分维度解析</CardTitle>
           </CardHeader>
           <CardContent>
             {score_dimensions && scoreKeys.length > 0 ? (
-              <div className="space-y-6">
-                {/* 雷达图 */}
-                <div className="h-[250px] w-[full]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <ChartContainer
-                      config={chartConfig}
-                      className="mx-auto aspect-square max-h-[250px] w-[full]"
-                    >
-                      <RadarChart data={radarData} className="w-[full]">
-                        <PolarGrid />
-                        <ChartTooltip
-                          cursor={false}
-                          content={<ChartTooltipContent />}
-                        />
-                        <PolarAngleAxis
-                          dataKey="dimension"
-                          tick={{ fill: "currentColor", fontSize: 12 }}
-                        />
-                        <RechartsRadar
-                          name="得分"
-                          dataKey="score"
-                          fill="hsl(var(--primary))"
-                          fillOpacity={0.6}
-                          stroke="hsl(var(--primary))"
-                          dot={{
-                            r: 4,
-                            fillOpacity: 1,
-                            fill: "hsl(var(--primary))",
-                          }}
-                        />
-                      </RadarChart>
-                    </ChartContainer>
-                  </ResponsiveContainer>
+              <div className="space-y-8">
+                <div>
+                  <SectionTitle className="text-center mb-4">综合得分雷达图</SectionTitle>
+                  <div className="h-[300px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ChartContainer
+                        config={chartConfig}
+                        className="mx-auto aspect-square max-h-[300px]"
+                      >
+                        <RadarChart data={radarData}>
+                          <PolarGrid />
+                          <ChartTooltip
+                            cursor={false}
+                            content={<ChartTooltipContent />}
+                          />
+                          <PolarAngleAxis
+                            dataKey="dimension"
+                            tick={{ fill: "currentColor", fontSize: 12 }}
+                          />
+                          <RechartsRadar
+                            name="得分"
+                            dataKey="score"
+                            fill="hsl(var(--primary))"
+                            fillOpacity={0.6}
+                            stroke="hsl(var(--primary))"
+                            dot={{ r: 4, fillOpacity: 1, fill: "hsl(var(--primary))" }}
+                          />
+                        </RadarChart>
+                      </ChartContainer>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
 
-                {/* 详细得分卡片 */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {scoreKeys.map((key: string) => (
-                    <div
-                      key={key}
-                      className="flex flex-col gap-1 border rounded-lg p-3"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline">
-                          {scoreLabels[key] || key}
-                        </Badge>
-                        {score_dimensions[key] && (
-                          <span className="text-lg font-bold text-green-600">
-                            {score_dimensions[key].score}分
+                <div>
+                  <SectionTitle>各维度详细得分</SectionTitle>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {scoreKeys.map((key: string) => (
+                      <div
+                        key={key}
+                        className="flex flex-col gap-2 border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex items-center justify-between">
+                          {/* Removed Badge, using simple span */}
+                          <span className="text-base font-medium text-foreground">
+                            {scoreLabels[key] || key}
                           </span>
+                          {score_dimensions[key] && (
+                            <span className="text-xl font-bold text-green-600">
+                              {score_dimensions[key].score}分
+                            </span>
+                          )}
+                        </div>
+                        {score_dimensions[key]?.explaination && (
+                          <div className="text-sm text-muted-foreground pt-2 border-t mt-2">
+                            {score_dimensions[key].explaination}
+                          </div>
                         )}
                       </div>
-                      {score_dimensions[key]?.explaination && (
-                        <div className="text-sm text-muted-foreground">
-                          {score_dimensions[key].explaination}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
             ) : (
@@ -188,369 +216,308 @@ export default function CorrectionJsonContent({ data }: { data: any }) {
       {/* Tab3: 写作解析 */}
       <TabsContent value="analysis">
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center gap-2">
+            <Lightbulb className="h-5 w-5 text-primary" />
             <CardTitle>写作思路与解析</CardTitle>
           </CardHeader>
           <CardContent>
-            {/* Corrected access for preface */}
             {preface?.content && (
-              <div className="mb-4">
-                <span className="font-bold">前言</span>
-                <br />
-                <span>{preface.content}</span>
-              </div>
+              <>
+                <SectionTitle>前言概述</SectionTitle>
+                <p className="text-muted-foreground whitespace-pre-line">{preface.content}</p>
+                <Separator className="my-4" />
+              </>
             )}
-            {/* Corrected access for guiding_problems */}
             {Array.isArray(guiding_problems) && guiding_problems.length > 0 && (
-              <div className="mb-4">
-                <span className="font-bold">问题导入</span>
-                <ol className="list-decimal ml-6">
+              <>
+                <SectionTitle>关键问题导入</SectionTitle>
+                <ol className="list-decimal ml-6 space-y-2">
                   {guiding_problems.map(
-                    (
-                      item: { question: string; answer?: string },
-                      idx: number
-                    ) => (
-                      <li key={idx} className="mb-1">
-                        <span>{item.question}</span>
-                        {/* {item.answer && <>：{item.answer}</>} */}
-                      </li>
+                    (item: { question: string }, idx: number) => (
+                      <li key={idx}><span className="font-medium">{item.question}</span></li>
                     )
                   )}
                 </ol>
-              </div>
+                <Separator className="my-4" />
+              </>
             )}
-            {/* Corrected access for paragraph_analysis */}
-            {Array.isArray(paragraph_analysis) &&
-              paragraph_analysis.length > 0 && (
-                <div className="mb-4">
-                  <span className="font-bold">段落解析</span>
-                  <ul className="list-disc ml-6">
-                    {paragraph_analysis.map(
-                      (
-                        item: { original_text: string; interpretation: string },
-                        idx: number
-                      ) => (
-                        <li key={idx} className="mb-2">
-                          <span className="text-muted-foreground">
-                            {item.original_text}
-                          </span>
-                          <br />
-                          <span>{item.interpretation}</span>
-                        </li>
-                      )
-                    )}
-                  </ul>
-                </div>
-              )}
-            {Array.isArray(guiding_problems) && guiding_problems.length > 0 && (
-              <div className="mb-4">
-                <span className="font-bold">问题解答</span>
-                <ol className="list-decimal ml-6">
-                  {guiding_problems.map(
-                    (
-                      item: { question: string; answer?: string },
-                      idx: number
-                    ) => (
-                      <li key={idx} className="mb-1">
-                        <span>{item.question}</span><br />
-                        {item.answer && <>{item.answer}</>}
+            {Array.isArray(paragraph_analysis) && paragraph_analysis.length > 0 && (
+              <>
+                <SectionTitle>原文段落解析</SectionTitle>
+                <ul className="space-y-3">
+                  {paragraph_analysis.map(
+                    (item: { original_text: string; interpretation: string }, idx: number) => (
+                      <li key={idx} className="p-3 border rounded-md">
+                        <p className="font-medium text-primary mb-1">原文片段:</p>
+                        <blockquote className="pl-3 italic border-l-2 border-primary-foreground text-muted-foreground mb-2">
+                          {item.original_text}
+                        </blockquote>
+                        <p className="font-medium text-green-700 dark:text-green-500 mb-1">解析:</p>
+                        <p className="text-sm">{item.interpretation}</p>
                       </li>
                     )
                   )}
-                </ol>
-              </div>
+                </ul>
+                <Separator className="my-4" />
+              </>
             )}
-            {/* Corrected access for writing_framework_construction */}
-            {writing_framework_construction?.sections?.length > 0 && (
-              <div>
-                <span className="font-bold">写作框架</span>
-                <ol className="list-decimal ml-6">
-                  {writing_framework_construction.sections.map(
-                    (section: { points: string[] }, idx: number) => (
+            {Array.isArray(guiding_problems) && guiding_problems.length > 0 && (
+              <>
+                <SectionTitle>关键问题解答</SectionTitle>
+                <ol className="list-decimal ml-6 space-y-3">
+                  {guiding_problems.map(
+                    (item: { question: string; answer?: string }, idx: number) => (
                       <li key={idx}>
-                        {Array.isArray(section.points) &&
-                          section.points.map((point: string, i: number) => (
-                            <span key={i}>{point}<br /></span>
-                          ))}
+                        <p className="font-medium">{item.question}</p>
+                        {item.answer && <p className="text-sm text-muted-foreground mt-1 whitespace-pre-line">{item.answer}</p>}
                       </li>
                     )
                   )}
                 </ol>
-              </div>
+                <Separator className="my-4" />
+              </>
+            )}
+            {writing_framework_construction?.sections?.length > 0 && (
+              <>
+                <SectionTitle>续写框架构建</SectionTitle>
+                <ol className="list-decimal ml-6 space-y-2">
+                  {writing_framework_construction.sections.map(
+                    (section: { title?: string, points: string[] }, idx: number) => (
+                      <li key={idx}>
+                        {section.title && <p className="font-medium">{section.title}</p>}
+                        {Array.isArray(section.points) && section.points.length > 0 && (
+                          <ul className="list-disc ml-5 mt-1 text-sm text-muted-foreground">
+                            {section.points.map((point: string, i: number) => <li key={i}>{point}</li>)}
+                          </ul>
+                        )}
+                      </li>
+                    )
+                  )}
+                </ol>
+              </>
+            )}
+            {(!preface?.content && (!guiding_problems || guiding_problems.length === 0) && (!paragraph_analysis || paragraph_analysis.length === 0) && (!writing_framework_construction?.sections || writing_framework_construction.sections.length === 0)) && (
+              <div>暂无写作解析信息。</div>
             )}
           </CardContent>
         </Card>
       </TabsContent>
 
-      {/* Tab4: 表达升级 */}
-      <TabsContent value="upgrade">
+      {/* Tab4: 话题语料 */}
+      <TabsContent value="topic_material">
         <Card>
-          <CardHeader>
-            <CardTitle>词汇与表达升级</CardTitle>
+          <CardHeader className="flex flex-row items-center gap-2">
+            <ListChecks className="h-5 w-5 text-primary" />
+            <CardTitle>话题相关语料积累</CardTitle>
           </CardHeader>
           <CardContent>
-            <Separator className="mb-4" />
-            {/* 话题词汇、短语、句型 */}
-            {/* Corrected access for vocabulary_and_phrases_for_continuation */}
-            {vocabulary_and_phrases_for_continuation?.topics?.length > 0 && (
-              <div className="mb-4">
-                <span className="font-bold mb-4">话题词汇</span>
-                {vocabulary_and_phrases_for_continuation.topics.map(
-                  (
-                    topic: {
-                      topic_name: string;
-                      vocabulary?: {
-                        word: string;
-                        explaination: string;
-                        chinese_meaning: string;
-                        example_sentence: string;
-                      }[];
-                      phrases?: string[];
-                      useful_sentences?: string[];
-                    },
-                    idx: number
-                  ) => (
-                    <div key={idx} className="mb-2">
-                      <span className="font-medium">{topic.topic_name}</span><br />
-                      {/* Added check for vocabulary */}
-                      <span className="font-semibold text-sm">词汇</span>
-                      {Array.isArray(topic.vocabulary) &&
-                        topic.vocabulary.length > 0 && (
-                          <ul className="list-disc ml-6">
-                            {topic.vocabulary.map(
-                              (
-                                v: {
-                                  word: string;
-                                  explaination: string;
-                                  chinese_meaning: string;
-                                  example_sentence: string;
-                                },
-                                i: number
-                              ) => (
-                                <li key={i}>
-                                  <span className="font-medium">{v.word}</span><br />
-                                  {v.explaination} &nbsp;&nbsp;&nbsp; {v.chinese_meaning}<br />
-                                  <span className="text-muted-foreground">
-                                    • e.g.: {v.example_sentence}
-                                  </span>
-                                </li>
-                              )
-                            )}
-                          </ul>
-                        )}
-                      {/* Added check for phrases */}
-                      {Array.isArray(topic.phrases) &&
-                        topic.phrases.length > 0 && (
-                          <div>
-                            <span className="font-semibold text-sm">短语</span>
-                            <ul className="list-disc ml-6">
-                              {topic.phrases.map((p: string, i: number) => (
-                                <li key={i}>{p}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      {/* Added check for useful_sentences */}
-                      {Array.isArray(topic.useful_sentences) &&
-                        topic.useful_sentences.length > 0 && (
-                          <div>
-                            <span className="font-semibold text-sm">实用句子</span>
-                            <ul className="list-disc ml-6">
-                              {topic.useful_sentences.map(
-                                (s: string, i: number) => (
-                                  <li key={i}>{s}</li>
-                                )
+            {vocabulary_and_phrases_for_continuation?.topics?.length > 0 ? (
+              vocabulary_and_phrases_for_continuation.topics.map(
+                (topic: any, topicIdx: number) => (
+                  <div key={topicIdx} className="mb-6">
+                    <SectionTitle>{topic.topic_name}</SectionTitle>
+                    {Array.isArray(topic.vocabulary) && topic.vocabulary.length > 0 && (
+                      <>
+                        <SubSectionTitle>核心词汇</SubSectionTitle>
+                        <ul className="space-y-3">
+                          {topic.vocabulary.map((v: any, i: number) => (
+                            <li key={i} className="p-3 border rounded-md">
+                              <p><strong className="text-primary">{v.word}</strong> {v.chinese_meaning && <span className="text-sm text-muted-foreground">({v.chinese_meaning})</span>}</p>
+                              {v.explaination && <p className="text-sm my-1">{v.explaination}</p>}
+                              {v.example_sentence && <p className="text-xs text-gray-500 dark:text-gray-400 italic">e.g.: {v.example_sentence}</p>}
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+                    {Array.isArray(topic.phrases) && topic.phrases.length > 0 && (
+                      <>
+                        <SubSectionTitle>常用短语</SubSectionTitle>
+                        {/* Changed ul styling to match vocabulary for consistency */}
+                        <ul className="space-y-3">
+                          {topic.phrases.map((p: any, i: number) => (
+                            <li key={i} className="p-3 border rounded-md">
+                              {typeof p === 'object' && p !== null ? (
+                                <>
+                                  <p>
+                                    <strong className="text-primary">{p.phrase}</strong>
+                                    {p.chinese_meaning && <span className="text-sm text-muted-foreground"> ({p.chinese_meaning})</span>}
+                                  </p>
+                                  {p.explaination && <p className="text-sm my-1">{p.explaination}</p>}
+                                  {p.example_sentence && <p className="text-xs text-gray-500 dark:text-gray-400 italic">e.g.: {p.example_sentence}</p>}
+                                </>
+                              ) : (
+                                // Fallback for simple string phrases
+                                <p><strong className="text-primary">{String(p)}</strong></p>
                               )}
-                            </ul>
-                          </div>
-                        )}
-                    </div>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+                    {Array.isArray(topic.useful_sentences) && topic.useful_sentences.length > 0 && (
+                      <>
+                        <SubSectionTitle>实用句型</SubSectionTitle>
+                        {/* Assuming useful_sentences are still strings. If they also change, this needs similar adaptation. */}
+                        <ul className="list-disc ml-6 space-y-1 text-sm">
+                          {topic.useful_sentences.map((s: any, i: number) => <li key={i}>{s}</li>)}
+                        </ul>
+                      </>
+                    )}
+                    {topicIdx < vocabulary_and_phrases_for_continuation.topics.length - 1 && <Separator className="my-6" />}
+                  </div>
+                )
+              )
+            ) : (
+              <div>暂无话题语料信息。</div>
+            )}
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      {/* Tab5: 续写升级 */}
+      <TabsContent value="writing_upgrade">
+        <Card>
+          <CardHeader className="flex flex-row items-center gap-2">
+            <ArrowUpCircle className="h-5 w-5 text-primary" />
+            <CardTitle>表达方式升级建议</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {Array.isArray(vocabulary_upgradation) && vocabulary_upgradation.length > 0 && (
+              <>
+                <SectionTitle>词汇升级</SectionTitle>
+                <ul className="space-y-3">
+                  {vocabulary_upgradation.map((item, idx) => (
+                    <li key={idx} className="p-3 border rounded-md">
+                      <p>
+                        <span className="font-medium text-gray-600 dark:text-gray-400">{item.original_word}</span> → <strong className="text-green-700 dark:text-green-500">{item.upgraded_word}</strong>
+                        <span className="text-sm text-muted-foreground ml-2">({item.chinese_meaning})</span>
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 italic mt-1">e.g.: {item.example_sentence}</p>
+                    </li>
+                  ))}
+                </ul>
+                <Separator className="my-6" />
+              </>
+            )}
+            {Array.isArray(phrase_upgradation) && phrase_upgradation.length > 0 && (
+              <>
+                <SectionTitle>短语升级</SectionTitle>
+                <ul className="space-y-3">
+                  {phrase_upgradation.map((item, idx) => (
+                    <li key={idx} className="p-3 border rounded-md">
+                      <p className="font-medium text-gray-600 dark:text-gray-400">{item.original_phrase}</p>
+                      <p className="my-1">→ <strong className="text-green-700 dark:text-green-500">{item.upgraded_phrase}</strong></p>
+                      <p className="text-sm text-muted-foreground">
+                        {item.english_explanation} ({item.chinese_meaning})
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 italic mt-1">e.g.: {item.example_sentence}</p>
+                    </li>
+                  ))}
+                </ul>
+                <Separator className="my-6" />
+              </>
+            )}
+            {Array.isArray(sentence_upgradation) && sentence_upgradation.length > 0 && (
+              <>
+                <SectionTitle>句型升级</SectionTitle>
+                <ul className="space-y-3">
+                  {sentence_upgradation.map((item, idx) => (
+                    <li key={idx} className="p-3 border rounded-md">
+                      <p className="font-medium text-gray-600 dark:text-gray-400">{item.original_sentence}</p>
+                      <p className="my-1">→ <strong className="text-green-700 dark:text-green-500">{item.upgraded_sentence}</strong></p>
+                      <p className="text-sm text-muted-foreground">{item.explanation}</p>
+                    </li>
+                  ))}
+                </ul>
+                <Separator className="my-6" />
+              </>
+            )}
+            {Array.isArray(detail_description_upgradation) && detail_description_upgradation.length > 0 && (
+              <>
+                <SectionTitle>细节描写升级</SectionTitle>
+                <ul className="space-y-3">
+                  {detail_description_upgradation.map((item, idx) => (
+                    <li key={idx} className="p-3 border rounded-md">
+                      <p className="font-medium text-gray-600 dark:text-gray-400">{item.original_description}</p>
+                      <p className="my-1">→ <strong className="text-green-700 dark:text-green-500">{item.upgraded_description}</strong></p>
+                      <p className="text-sm text-muted-foreground">{item.explanation}</p>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {(!vocabulary_upgradation || vocabulary_upgradation.length === 0) && (!phrase_upgradation || phrase_upgradation.length === 0) && (!sentence_upgradation || sentence_upgradation.length === 0) && (!detail_description_upgradation || detail_description_upgradation.length === 0) && (
+              <div>暂无续写升级建议。</div>
+            )}
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      {/* Tab6: 升格文纯享版 */}
+      <TabsContent value="pure_upgrade_text">
+        <Card>
+          <CardHeader className="flex flex-row items-center gap-2">
+            <FileSignature className="h-5 w-5 text-primary" />
+            <CardTitle>升格文纯享版</CardTitle>
+          </CardHeader>
+          {/* CardContent for pure upgrade now has a dark background and white text */}
+          <CardContent className="text-slate-100 rounded-b-lg p-6">
+            <div className="flex items-center space-x-6 mb-6">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="showOriginalPure"
+                  checked={showOriginalInPureUpgrade}
+                  onCheckedChange={(checked) => setShowOriginalInPureUpgrade(!!checked)}
+                  className="border-slate-500 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                />
+                <Label htmlFor="showOriginalPure" className="text-sm font-medium text-slate-300">
+                  原文对照
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="showAnnotationsPure"
+                  checked={showAnnotationsInPureUpgrade}
+                  onCheckedChange={(checked) => setShowAnnotationsInPureUpgrade(!!checked)}
+                  className="border-slate-500 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                />
+                <Label htmlFor="showAnnotationsPure" className="text-sm font-medium text-slate-300">
+                  显示批注
+                </Label>
+              </div>
+            </div>
+
+            {Array.isArray(pureUpgradation) && pureUpgradation.length > 0 ? (
+              <div className="leading-relaxed text-base space-y-1">
+                {pureUpgradation.map(
+                  (item: { sentence: string; upgradation: string; comment: string; }, idx: number) => (
+                    <React.Fragment key={idx}>
+                      {showOriginalInPureUpgrade && (
+                        <span className="block text-xs text-slate-400 italic mb-0.5 pl-1">
+                          (原文: {item.sentence})
+                        </span>
+                      )}
+                      <span
+                        className="text-slate-50 font-medium" // Main upgraded text is brighter
+                      // title={showOriginalInPureUpgrade ? `原文: ${item.sentence}` : undefined} // Alternative way to show original
+                      >
+                        {item.upgradation}
+                      </span>
+                      {showAnnotationsInPureUpgrade && item.comment && (
+                        <span
+                          className="ml-1.5 mr-0.5 text-[0.7rem] leading-none text-cyan-300 bg-cyan-800/60 ring-1 ring-cyan-700/70 px-1.5 py-0.5 rounded-sm align-baseline"
+                        >
+                          {item.comment}
+                        </span>
+                      )}
+                      {' '}
+                    </React.Fragment>
                   )
                 )}
               </div>
-            )}
-
-            {/* 单词升级 */}
-            {/* Corrected access for vocabulary_upgradation */}
-            <Separator className="mb-4" />
-            {Array.isArray(vocabulary_upgradation) &&
-              vocabulary_upgradation.length > 0 && (
-                <div className="mb-4">
-                  <span className="font-bold">词汇升级</span>
-                  <ul className="list-disc ml-6">
-                    {vocabulary_upgradation.map(
-                      (
-                        item: {
-                          original_word: string;
-                          upgraded_word: string;
-                          chinese_meaning: string;
-                          example_sentence: string;
-                        },
-                        idx: number
-                      ) => (
-                        <li key={idx}>
-                          <span className="font-bold">
-                            {item.original_word}
-                          </span>{" "}
-                          →{" "}
-                          <span className="text-green-700">
-                            {item.upgraded_word}
-                          </span>
-                          &nbsp;&nbsp;&nbsp;{item.chinese_meaning}<br />
-                          <span className="text-muted-foreground">
-                            e.g.: {item.example_sentence}
-                          </span>
-                        </li>
-                      )
-                    )}
-                  </ul>
-                </div>
-              )}
-
-            {/* Added Phrase Upgradation */}
-            {/* Corrected access for phrase_upgradation */}
-            <Separator className="mb-4" />
-            {Array.isArray(phrase_upgradation) &&
-              phrase_upgradation.length > 0 && (
-                <div className="mb-4">
-                  <span className="font-bold">词组升级</span>
-                  <ul className="list-disc ml-6">
-                    {phrase_upgradation.map(
-                      (
-                        item: {
-                          original_phrase: string;
-                          upgraded_phrase: string;
-                          english_explanation: string;
-                          chinese_meaning: string;
-                          example_sentence: string;
-                        },
-                        idx: number
-                      ) => (
-                        <li key={idx}>
-                          <span className="font-bold">
-                            {item.original_phrase}
-                          </span>{" "}<br />
-                          →{" "}
-                          <span className="text-green-700">
-                            {item.upgraded_phrase}
-                          </span>
-                          <br />
-                          <span className="text-muted-foreground">
-                            • {item.english_explanation}&nbsp;&nbsp;&nbsp;{item.chinese_meaning}
-                          </span>
-                          <br />
-                          <span className="text-muted-foreground">
-                            • e.g.: {item.example_sentence}
-                          </span>
-                        </li>
-                      )
-                    )}
-                  </ul>
-                </div>
-              )}
-
-            {/* 句型升级 */}
-            {/* Corrected access for sentence_upgradation */}
-            <Separator className="mb-4" />
-            {Array.isArray(sentence_upgradation) &&
-              sentence_upgradation.length > 0 && (
-                <div className="mb-4">
-                  <span className="font-bold">句型升级</span>
-                  <ul className="list-disc ml-6">
-                    {sentence_upgradation.map(
-                      (
-                        item: {
-                          original_sentence: string;
-                          upgraded_sentence: string;
-                          explanation: string;
-                        },
-                        idx: number
-                      ) => (
-                        <li key={idx}>
-                          <span className="font-bold">
-                            {item.original_sentence}
-                          </span>{" "}<br />
-                          →{" "}
-                          <span className="text-green-700">
-                            {item.upgraded_sentence}
-                          </span>
-                          <br />
-                          <span className="text-muted-foreground">
-                            {item.explanation}
-                          </span>
-                        </li>
-                      )
-                    )}
-                  </ul>
-                </div>
-              )}
-
-            {/* 细节升级 */}
-            {/* Corrected access for detail_description_upgradation */}
-            <Separator className="mb-4" />
-            {Array.isArray(detail_description_upgradation) &&
-              detail_description_upgradation.length > 0 && (
-                <div className="mb-4">
-                  <span className="font-bold">细节描写升级</span>
-                  <ul className="list-disc ml-6">
-                    {detail_description_upgradation.map(
-                      (
-                        item: {
-                          original_description: string;
-                          upgraded_description: string;
-                          explanation: string;
-                        },
-                        idx: number
-                      ) => (
-                        <li key={idx}>
-                          <span className="font-bold">
-                            {item.original_description}
-                          </span>{" "}<br />
-                          →{" "}
-                          <span className="text-green-700">
-                            {item.upgraded_description}
-                          </span>
-                          <br />
-                          <span className="text-muted-foreground">
-                            {item.explanation}
-                          </span>
-                        </li>
-                      )
-                    )}
-                  </ul>
-                </div>
-              )}
-
-            {/* 纯升级 */}
-            {/* Corrected access for pureUpgradation - this was already correct as it's top-level */}
-            <Separator className="mb-4" />
-            {Array.isArray(pureUpgradation) && pureUpgradation.length > 0 && (
-              <div>
-                <span className="font-bold">升格文纯享版</span>
-                <ul className="list-disc ml-6">
-                  {pureUpgradation.map(
-                    (
-                      item: {
-                        sentence: string;
-                        upgradation: string;
-                        comment: string;
-                      },
-                      idx: number
-                    ) => (
-                      <li key={idx}>
-                        <span className="font-bold">{item.sentence}</span> →{" "}
-                        <span className="text-green-700">
-                          {item.upgradation}
-                        </span>
-                        <br />
-                        <span className="text-muted-foreground">
-                          {item.comment}
-                        </span>
-                      </li>
-                    )
-                  )}
-                </ul>
-              </div>
+            ) : (
+              <div className="text-center py-8 text-slate-400">暂无升格文内容。</div>
             )}
           </CardContent>
         </Card>
