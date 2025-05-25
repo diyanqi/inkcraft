@@ -187,7 +187,7 @@ export const correctionFunctions = [
             }
         }
         logger.info("Shared interpretation generated", { uuid });
-        await util.updateByUuid(uuid, { status: "processing-essays" });
+        await util.updateByUuid(uuid, { status: "processing" });
       }
 
 
@@ -245,7 +245,7 @@ export const correctionFunctions = [
         });
         logger.info(`Finished processing for essay${essayLoggerSuffix}`, { uuid });
       }
-      await util.updateByUuid(uuid, { status: "aggregating-results" });
+      await util.updateByUuid(uuid, { status: "processing" });
 
 
       // --------------------------------------------------------------------------
@@ -282,7 +282,7 @@ export const correctionFunctions = [
         await util.updateByUuid(uuid, {
           score: finalScore,
           content: JSON.stringify(newContentObject),
-          status: "generate-title", // Next step is title generation
+          status: "processing", // Next step is title generation
         });
         logger.info("Correction record updated with all essay results and shared interpretation", { uuid });
       });
@@ -295,14 +295,14 @@ export const correctionFunctions = [
         await step.run("generate-title", async () => {
           logger.info("Step: generate-title (as not provided by user)", { uuid });
           sharedTitle = await generateTitle(formData.originalText); // formData.originalText should be correct
-          await util.updateByUuid(uuid, { title: sharedTitle, status: "generate-icon" });
+          await util.updateByUuid(uuid, { title: sharedTitle, status: "processing" });
           currentStatusForNextStep = "generate-icon";
           logger.info("Title generated and record updated", { uuid, newTitle: sharedTitle });
         });
       } else {
         // Title was provided, so just update status for the next step
         logger.info("Title was provided by user, skipping generation.", { uuid, existingTitle: formData.title });
-        await util.updateByUuid(uuid, { status: "generate-icon" }); // Ensure status moves to next
+        await util.updateByUuid(uuid, { status: "processing" }); // Ensure status moves to next
         currentStatusForNextStep = "generate-icon";
       }
 

@@ -83,9 +83,14 @@ export async function POST(request: NextRequest) {
     if (startIndex !== -1 && endIndex !== -1) {
       ocrTextFromGemma = ocrTextFromGemma.substring(startIndex, endIndex + 1);
     }
+    // console.info("Parsed JSON from Gemma Vision Model:", ocrTextFromGemma);
     // 尝试解析 JSON 格式的文本
     try {
-      parsedResult = JSON.parse(ocrTextFromGemma);
+      // Remove control characters before parsing
+      const cleanedOcrText = ocrTextFromGemma.replace(/[\u0000-\u001F\u007F-\u009F]/g, (char) => {
+        return char === '\n' ? '\\n' : '';
+      });
+      parsedResult = JSON.parse(cleanedOcrText);
     } catch (parseError) {
       console.error('JSON Parse Error:', parseError);
       return NextResponse.json({
