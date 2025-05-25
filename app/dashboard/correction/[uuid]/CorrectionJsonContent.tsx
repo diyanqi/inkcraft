@@ -404,8 +404,12 @@ export default function CorrectionJsonContent({
                     {Array.isArray(topic.useful_sentences) && topic.useful_sentences.length > 0 && (
                       <>
                         <SubSectionTitle>实用句型</SubSectionTitle>
-                        <ul className="list-disc ml-6 space-y-1 text-sm text-foreground/90">
-                          {topic.useful_sentences.map((s: any, i: number) => <li key={i}>{s}</li>)}
+                        <ul className="space-y-3"> {/* Changed from list-disc ml-6 space-y-1 */}
+                          {topic.useful_sentences.map((s: string, i: number) => (
+                            <li key={i} className="p-3 border rounded-md text-sm text-foreground/90"> {/* Added styling to li */}
+                              {s}
+                            </li>
+                          ))}
                         </ul>
                       </>
                     )}
@@ -582,16 +586,19 @@ export default function CorrectionJsonContent({
             <FileSignature className="h-5 w-5 text-primary" />
             <CardTitle>升格文纯享版</CardTitle>
           </CardHeader>
-          <CardContent className="text-slate-100 rounded-b-lg p-6">
+          {/* Removed text-slate-100 from CardContent */}
+          <CardContent className="rounded-b-lg p-6">
             <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mb-6">
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="showOriginalPure"
                   checked={showOriginalInPureUpgrade}
                   onCheckedChange={(checked) => setShowOriginalInPureUpgrade(!!checked)}
+                  // Assuming border-slate-500 is acceptable or theme-dependent
                   className="border-slate-500 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
                 />
-                <Label htmlFor="showOriginalPure" className="text-sm font-medium text-slate-300">
+                {/* Changed text-slate-300 to text-foreground/80 */}
+                <Label htmlFor="showOriginalPure" className="text-sm font-medium text-foreground/80">
                   原文对照
                 </Label>
               </div>
@@ -602,7 +609,8 @@ export default function CorrectionJsonContent({
                   onCheckedChange={(checked) => setShowAnnotationsInPureUpgrade(!!checked)}
                   className="border-slate-500 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
                 />
-                <Label htmlFor="showAnnotationsPure" className="text-sm font-medium text-slate-300">
+                {/* Changed text-slate-300 to text-foreground/80 */}
+                <Label htmlFor="showAnnotationsPure" className="text-sm font-medium text-foreground/80">
                   显示批注
                 </Label>
               </div>
@@ -614,18 +622,21 @@ export default function CorrectionJsonContent({
                   (item: { sentence: string; upgradation: string; comment: string; }, idx: number) => (
                     <React.Fragment key={idx}>
                       {showOriginalInPureUpgrade && item.sentence && (
-                        <span className="text-xs text-slate-400 italic mr-1 opacity-90">
+                        // Changed text-slate-400 to text-muted-foreground
+                        <span className="text-xs text-muted-foreground italic mr-1 opacity-90">
                           ({item.sentence})
                         </span>
                       )}
                       <span
-                        className="text-slate-50 font-medium"
+                        // Changed text-slate-50 to text-foreground
+                        className="text-foreground font-medium"
                       >
                         {item.upgradation}
                       </span>
                       {showAnnotationsInPureUpgrade && item.comment && (
                         <span
-                          className="ml-1 mr-0.5 text-[0.7rem] leading-none text-sky-300 italic px-0.5 align-baseline"
+                          // Changed text-sky-300 to text-blue-600 dark:text-blue-400
+                          className="ml-1 mr-0.5 text-[0.7rem] leading-none text-blue-600 dark:text-blue-400 italic px-0.5 align-baseline"
                         >
                           ({item.comment})
                         </span>
@@ -636,7 +647,8 @@ export default function CorrectionJsonContent({
                 )}
               </div>
             ) : (
-              <div className="text-center py-8 text-slate-400">暂无升格文内容。</div>
+              // Changed text-slate-400 to text-muted-foreground
+              <div className="text-center py-8 text-muted-foreground">暂无升格文内容。</div>
             )}
           </CardContent>
         </Card>
