@@ -1,123 +1,111 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
+import { createOpenAI } from '@ai-sdk/openai';
 import { generateText } from 'ai';
-// This 'gemini' instance is now assumed to be configured for your Gemma vision model
-import { gemini } from '@/utils/models'; // Adjust path as necessary
+
+const openai = createOpenAI({
+  baseURL: process.env.OPENAI_API_BASEURL || '',
+  apiKey: process.env.OPENAI_API_APIKEY || '',
+  compatibility: 'compatible',
+});
+
+// 从环境变量获取API密钥数组
+const getApiKeys = () => {
+  const apiKeysString = process.env.OCR_API_KEYS || '';
+  return apiKeysString.split(',').filter(key => key.trim() !== '');
+};
+
+// 简单的轮询算法，每次请求使用不同的API密钥
+let currentKeyIndex = 0;
+const getNextApiKey = () => {
+  const apiKeys = getApiKeys();
+  if (apiKeys.length === 0) {
+    throw new Error('未配置OCR API密钥');
+  }
+  
+  const key = apiKeys[currentKeyIndex];
+  currentKeyIndex = (currentKeyIndex + 1) % apiKeys.length;
+  return key;
+};
 
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
-
+    
     if (!file) {
-      return NextResponse.json({ error: '未提供图片文件' }, {
+      return new Response(JSON.stringify({ error: '未提供图片文件' }), { 
         status: 400,
+        headers: { 'Content-Type': 'application/json' }
       });
     }
 
-    // Server-side file size check (e.g., 5MB for vision models, adjust as needed)
-    // For Gemma vision models, check their specific recommendations for image size.
-    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes, adjust as needed
-    if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json({ success: false, error: `图片文件过大，请确保小于 ${MAX_FILE_SIZE / (1024*1024)}MB` }, {
-        status: 413, // Payload Too Large
-      });
-    }
+   // Add server-side file size check (e.g., 1MB)
+   const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1MB in bytes
+   if (file.size > MAX_FILE_SIZE) {
+     return new Response(JSON.stringify({ success: false, error: '图片文件过大，请确保小于1MB' }), {
+       status: 413, // Payload Too Large
+       headers: { 'Content-Type': 'application/json' }
+     });
+   }
 
-    // Convert file to Buffer to send to the vision model
-    const imageBuffer = Buffer.from(await file.arrayBuffer());
+    // 创建新的FormData对象发送到OCR服务
+    const ocrFormData = new FormData();
+    ocrFormData.append('file', file);
+    ocrFormData.append('apikey', getNextApiKey());
+    ocrFormData.append('language', 'eng');
+    ocrFormData.append('isOverlayRequired', 'false');
+    ocrFormData.append('OCREngine', '2');
+    ocrFormData.append('detectOrientation', 'true');
 
-    // 1. Call Gemma Vision model for OCR
-    // IMPORTANT: Replace '<your-gemma-3n-vision-model-identifier>'
-    // with the actual model identifier string for your Gemma vision model.
-    // This could be something like '@cf/google/gemma-some-vision-variant' if on Cloudflare,
-    // or a specific identifier if on another platform.
-    const gemmaVisionModelIdentifier = 'gemma-3-12b-it';
-    const gemmaModel = gemini(gemmaVisionModelIdentifier);
-
-    let ocrTextFromGemma = '';
-
-    try {
-      const { text: gemmaResponseText } = await generateText({
-        model: gemmaModel,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: '这里有一张答题卡，请你提取其中的文本，但是不要修复文本中的拼写/语法错误。如果有涂改导致单词错位的，你需要调整成正确的顺序。不需要markdown标记。最后，严格按照原文的分段将你的文本分成若干个自然段。特别注意，输出格式严格遵守以下JSON格式：{"result": "<OCR result>"}' },
-              { type: 'image', image: imageBuffer, mimeType: file.type },
-            ],
-          },
-        ],
-        // maxTokens might be relevant for the Gemma model's output length
-        // maxTokens: 2048, // Example, adjust as needed
-      });
-      ocrTextFromGemma = gemmaResponseText;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (gemmaError: any) {
-      console.error('Gemma Vision API Error:', gemmaError);
-      let errorMessage = 'Gemma Vision OCR及处理失败';
-      if (gemmaError.data && gemmaError.data.error && gemmaError.data.error.message) {
-        errorMessage = `Gemma Vision Error: ${gemmaError.data.error.message}`;
-      } else if (gemmaError.message) {
-        errorMessage = `Gemma Vision Error: ${gemmaError.message}`;
-      }
-      return NextResponse.json({
-        success: false,
-        error: errorMessage,
-      }, { status: 500 });
-    }
-
-    if (!ocrTextFromGemma || ocrTextFromGemma.trim() === '') {
-      return NextResponse.json({
-        success: false,
-        error: 'Gemma未能从图片中识别或提取到有效文本'
-      }, { status: 422 });
-    }
-
-    // console.info("Text from Gemma Vision Model:", ocrTextFromGemma);
-    // 解析 json 格式
-    let parsedResult;
-    // 鲁棒性处理，找到第一个{和最后一个}
-    const startIndex = ocrTextFromGemma.indexOf('{');
-    const endIndex = ocrTextFromGemma.lastIndexOf('}');
-    if (startIndex !== -1 && endIndex !== -1) {
-      ocrTextFromGemma = ocrTextFromGemma.substring(startIndex, endIndex + 1);
-    }
-    // console.info("Parsed JSON from Gemma Vision Model:", ocrTextFromGemma);
-    // 尝试解析 JSON 格式的文本
-    try {
-      // Remove control characters before parsing
-      const cleanedOcrText = ocrTextFromGemma.replace(/[\u0000-\u001F\u007F-\u009F]/g, (char) => {
-        return char === '\n' ? '\\n' : '';
-      });
-      parsedResult = JSON.parse(cleanedOcrText);
-    } catch (parseError) {
-      console.error('JSON Parse Error:', parseError);
-      return NextResponse.json({
-        success: false,
-        error: 'Gemma返回的文本格式不正确'
-      }, { status: 422 });
-    }
-
-    if (!parsedResult || !parsedResult.result) {
-      return NextResponse.json({
-        success: false,
-        error: 'Gemma返回的文本格式不正确，缺少result字段'
-      }, { status: 422 });
-    }
-
-    // Return the OCR text from Gemma
-    return NextResponse.json({
-      success: true,
-      text: parsedResult.result.replaceAll('#', ''),
+    const response = await fetch('https://api.ocr.space/parse/image', {
+      method: 'POST',
+      body: ocrFormData
     });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (error: any) {
-    console.error('Server Processing Error:', error);
-    return NextResponse.json({
+    const data = await response.json();
+    
+    if (data.ParsedResults && data.ParsedResults.length > 0) {
+      const parsedText = data.ParsedResults[0].ParsedText;
+      const cleanedText = parsedText;
+
+      // console.info(cleanedText);
+      
+      // return Response.json({
+      //   success: true,
+      //   text: cleanedText
+      // });
+
+      const model = openai('@cf/meta/llama-3.1-8b-instruct-fast');
+      const { text } = await generateText({
+        model,
+        messages: [
+          {
+            role: 'system',
+            content: `The user will provide you with an OCR text from an answer sheet, which may contain garbled characters, recognition errors, extra characters, and non-answer information from the answer sheet itself. You need to analyze its content, correct it, and extract the accurate text, then output it directly, without any additional information or explanation like 'Here is the corrected and extracted text'.`,
+          },
+          {
+            role: 'user',
+            content: cleanedText,
+          },
+        ],
+        maxTokens: 3096,
+      });
+      // console.info(text);
+      return Response.json({
+        success: true,
+        text,
+      });
+    } else {
+      return Response.json({
+        success: false,
+        error: data.ErrorMessage || 'OCR识别失败'
+      }, { status: 422 });
+    }
+  } catch (error) {
+    console.error('OCR API Error:', error);
+    return Response.json({
       success: false,
-      error: error.message || '服务器处理请求时出错'
+      error: '服务器处理OCR请求时出错'
     }, { status: 500 });
   }
 }

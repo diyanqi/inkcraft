@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React from "react"; // Removed useState as it's lifted
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import React from "react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -10,6 +10,7 @@ import {
   ListChecks,
   ArrowUpCircle,
   FileSignature,
+  Hammer, // Added for Strengthen Foundation tab
 } from "lucide-react";
 import {
   PolarAngleAxis,
@@ -26,8 +27,7 @@ import {
 } from "@/components/ui/chart";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { findContextSimple } from "@/utils/markdownUtils"; // Assuming findContextSimple is moved
-
+import { findContextSimple } from "@/utils/markdownUtils";
 
 const chartConfig = {
   desktop: {
@@ -52,7 +52,7 @@ const ParagraphRenderer: React.FC<{ text: string; useDropCap: boolean }> = ({ te
   if (!text) return null;
   const paragraphs = text.split('\n').filter(p => p.trim() !== '');
   return (
-    <div className="font-serif text-lg leading-relaxed flow-root"> {/* flow-root contains floats */}
+    <div className="font-serif text-lg leading-relaxed flow-root">
       {paragraphs.map((para, index) => (
         <p
           key={index}
@@ -72,15 +72,23 @@ interface CorrectionJsonContentProps {
   setShowOriginalInPureUpgrade: (value: boolean) => void;
   showAnnotationsInPureUpgrade: boolean;
   setShowAnnotationsInPureUpgrade: (value: boolean) => void;
+  showOriginalInStrengthen: boolean; // Added for Strengthen Foundation
+  setShowOriginalInStrengthen: (value: boolean) => void; // Added for Strengthen Foundation
+  showAnnotationsInStrengthen: boolean; // Added for Strengthen Foundation
+  setShowAnnotationsInStrengthen: (value: boolean) => void; // Added for Strengthen Foundation
 }
 
 export default function CorrectionJsonContent({
   data,
-  scoreLabels, // Receive scoreLabels as prop
+  scoreLabels,
   showOriginalInPureUpgrade,
   setShowOriginalInPureUpgrade,
   showAnnotationsInPureUpgrade,
   setShowAnnotationsInPureUpgrade,
+  showOriginalInStrengthen, // Added prop
+  setShowOriginalInStrengthen, // Added prop
+  showAnnotationsInStrengthen, // Added prop
+  setShowAnnotationsInStrengthen, // Added prop
 }: CorrectionJsonContentProps) {
   const {
     question,
@@ -89,6 +97,7 @@ export default function CorrectionJsonContent({
     interpretation,
     upgradation,
     pureUpgradation,
+    strengthenFoundation, // Added for Strengthen Foundation tab
   } = data;
 
   const {
@@ -107,7 +116,6 @@ export default function CorrectionJsonContent({
   } = upgradation || {};
 
   const scoreKeys = Object.keys(score_dimensions || {});
-  // scoreLabels is now a prop
 
   const radarData = scoreKeys.map((key) => ({
     dimension: scoreLabels[key] || key,
@@ -115,16 +123,14 @@ export default function CorrectionJsonContent({
     fullMark: 15,
   }));
 
-  // Removed local state for showOriginalInPureUpgrade and showAnnotationsInPureUpgrade
-  // Removed handleExportMarkdown and the export button
-
   return (
     <Tabs defaultValue="origin" className="w-full">
-      <TabsList className="mb-4 grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6 h-auto">
+      <TabsList className="mb-4 grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-7 h-auto">
         <TabsTrigger value="origin">原文与续写</TabsTrigger>
         <TabsTrigger value="score">评分维度</TabsTrigger>
         <TabsTrigger value="analysis">写作解析</TabsTrigger>
         <TabsTrigger value="topic_material">话题语料</TabsTrigger>
+        <TabsTrigger value="strengthen_foundation">夯实基础</TabsTrigger> {/* Added new tab */}
         <TabsTrigger value="writing_upgrade">续写升级</TabsTrigger>
         <TabsTrigger value="pure_upgrade_text">升格文纯享版</TabsTrigger>
       </TabsList>
@@ -404,9 +410,9 @@ export default function CorrectionJsonContent({
                     {Array.isArray(topic.useful_sentences) && topic.useful_sentences.length > 0 && (
                       <>
                         <SubSectionTitle>实用句型</SubSectionTitle>
-                        <ul className="space-y-3"> {/* Changed from list-disc ml-6 space-y-1 */}
+                        <ul className="space-y-3">
                           {topic.useful_sentences.map((s: string, i: number) => (
-                            <li key={i} className="p-3 border rounded-md text-sm text-foreground/90"> {/* Added styling to li */}
+                            <li key={i} className="p-3 border rounded-md text-sm text-foreground/90">
                               {s}
                             </li>
                           ))}
@@ -424,7 +430,53 @@ export default function CorrectionJsonContent({
         </Card>
       </TabsContent>
 
-      {/* Tab5: 续写升级 */}
+      {/* Tab5: 夯实基础 */}
+
+      {/* Tab5: 夯实基础 */}
+      <TabsContent value="strengthen_foundation">
+        <Card>
+          <CardHeader className="flex flex-row items-center gap-2">
+            <Hammer className="h-5 w-5 text-primary" />
+            <CardTitle>夯实基础</CardTitle>
+          </CardHeader>
+          <CardContent className="rounded-b-lg p-6">
+            {Array.isArray(strengthenFoundation) && strengthenFoundation.length > 0 ? (
+              <>
+                <SectionTitle>基础纠错</SectionTitle>
+                <ul className="space-y-4">
+                  {strengthenFoundation.map(
+                    (item: { sentence: string; correction: string; comment: string }, idx: number) => {
+                      const contextParts = findContextSimple(answer, item.sentence);
+                      return (
+                        <li key={idx} className="p-3 border rounded-md">
+                          <p className="font-medium text-foreground/80">{item.sentence}</p>
+                          <p className="my-1">→ <strong className="text-green-600 dark:text-green-500">{item.correction}</strong></p>
+                          <p className="text-sm text-foreground/90">{item.comment}</p>
+                          {contextParts && (
+                            <div className="mt-2 text-xs text-foreground/70 p-2 bg-muted/40 rounded">
+                              <p className="font-semibold mb-0.5 text-foreground/80">原文片段参考:</p>
+                              <p className="italic">
+                                {contextParts.prefix}
+                                <mark className="bg-primary/20 text-primary font-semibold px-0.5 rounded not-italic">{contextParts.match}</mark>
+                                {contextParts.suffix}
+                              </p>
+                            </div>
+                          )}
+                        </li>
+                      );
+                    }
+                  )}
+                </ul>
+              </>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">暂无基础纠正内容。</div>
+            )}
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+
+      {/* Tab6: 续写升级 */}
       <TabsContent value="writing_upgrade">
         <Card>
           <CardHeader className="flex flex-row items-center gap-2">
@@ -483,7 +535,7 @@ export default function CorrectionJsonContent({
                           {item.chinese_meaning && <span className="text-foreground/80"> ({item.chinese_meaning})</span>}
                         </p>
                         {item.example_sentence && (
-                           <div className="mt-1 flex items-start text-xs text-foreground/70">
+                          <div className="mt-1 flex items-start text-xs text-foreground/70">
                             <span className="font-semibold mr-1.5 opacity-80 shrink-0">例句:</span>
                             <span className="italic">{item.example_sentence}</span>
                           </div>
@@ -491,7 +543,7 @@ export default function CorrectionJsonContent({
                         {contextParts && (
                           <div className="mt-2 text-xs text-foreground/70 p-2 bg-muted/40 rounded">
                             <p className="font-semibold mb-0.5 text-foreground/80">原文片段参考:</p>
-                             <p className="italic">
+                            <p className="italic">
                               {contextParts.prefix}
                               <mark className="bg-primary/20 text-primary font-semibold px-0.5 rounded not-italic">{contextParts.match}</mark>
                               {contextParts.suffix}
@@ -517,7 +569,7 @@ export default function CorrectionJsonContent({
                         <p className="my-1">→ <strong className="text-green-600 dark:text-green-500">{item.upgraded_sentence}</strong></p>
                         <p className="text-sm text-foreground/90">{item.explanation}</p>
                         {item.example_sentence && (
-                           <div className="mt-1 flex items-start text-xs text-foreground/70">
+                          <div className="mt-1 flex items-start text-xs text-foreground/70">
                             <span className="font-semibold mr-1.5 opacity-80 shrink-0">例句:</span>
                             <span className="italic">{item.example_sentence}</span>
                           </div>
@@ -525,7 +577,7 @@ export default function CorrectionJsonContent({
                         {contextParts && (
                           <div className="mt-2 text-xs text-foreground/70 p-2 bg-muted/40 rounded">
                             <p className="font-semibold mb-0.5 text-foreground/80">原文片段参考:</p>
-                             <p className="italic">
+                            <p className="italic">
                               {contextParts.prefix}
                               <mark className="bg-primary/20 text-primary font-semibold px-0.5 rounded not-italic">{contextParts.match}</mark>
                               {contextParts.suffix}
@@ -559,7 +611,7 @@ export default function CorrectionJsonContent({
                         {contextParts && (
                           <div className="mt-2 text-xs text-foreground/70 p-2 bg-muted/40 rounded">
                             <p className="font-semibold mb-0.5 text-foreground/80">原文片段参考:</p>
-                             <p className="italic">
+                            <p className="italic">
                               {contextParts.prefix}
                               <mark className="bg-primary/20 text-primary font-semibold px-0.5 rounded not-italic">{contextParts.match}</mark>
                               {contextParts.suffix}
@@ -579,14 +631,13 @@ export default function CorrectionJsonContent({
         </Card>
       </TabsContent>
 
-      {/* Tab6: 升格文纯享版 */}
+      {/* Tab7: 升格文纯享版 */}
       <TabsContent value="pure_upgrade_text">
         <Card>
           <CardHeader className="flex flex-row items-center gap-2">
             <FileSignature className="h-5 w-5 text-primary" />
             <CardTitle>升格文纯享版</CardTitle>
           </CardHeader>
-          {/* Removed text-slate-100 from CardContent */}
           <CardContent className="rounded-b-lg p-6">
             <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mb-6">
               <div className="flex items-center space-x-2">
@@ -594,10 +645,8 @@ export default function CorrectionJsonContent({
                   id="showOriginalPure"
                   checked={showOriginalInPureUpgrade}
                   onCheckedChange={(checked) => setShowOriginalInPureUpgrade(!!checked)}
-                  // Assuming border-slate-500 is acceptable or theme-dependent
                   className="border-slate-500 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
                 />
-                {/* Changed text-slate-300 to text-foreground/80 */}
                 <Label htmlFor="showOriginalPure" className="text-sm font-medium text-foreground/80">
                   原文对照
                 </Label>
@@ -609,35 +658,26 @@ export default function CorrectionJsonContent({
                   onCheckedChange={(checked) => setShowAnnotationsInPureUpgrade(!!checked)}
                   className="border-slate-500 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
                 />
-                {/* Changed text-slate-300 to text-foreground/80 */}
                 <Label htmlFor="showAnnotationsPure" className="text-sm font-medium text-foreground/80">
                   显示批注
                 </Label>
               </div>
             </div>
-
             {Array.isArray(pureUpgradation) && pureUpgradation.length > 0 ? (
               <div className="leading-relaxed text-base font-serif">
                 {pureUpgradation.map(
                   (item: { sentence: string; upgradation: string; comment: string; }, idx: number) => (
                     <React.Fragment key={idx}>
                       {showOriginalInPureUpgrade && item.sentence && (
-                        // Changed text-slate-400 to text-muted-foreground
                         <span className="text-xs text-muted-foreground italic mr-1 opacity-90">
                           ({item.sentence})
                         </span>
                       )}
-                      <span
-                        // Changed text-slate-50 to text-foreground
-                        className="text-foreground font-medium"
-                      >
+                      <span className="text-foreground font-medium">
                         {item.upgradation}
                       </span>
                       {showAnnotationsInPureUpgrade && item.comment && (
-                        <span
-                          // Changed text-sky-300 to text-blue-600 dark:text-blue-400
-                          className="ml-1 mr-0.5 text-[0.7rem] leading-none text-blue-600 dark:text-blue-400 italic px-0.5 align-baseline"
-                        >
+                        <span className="ml-1 mr-0.5 text-[0.7rem] leading-none text-blue-600 dark:text-blue-400 italic px-0.5 align-baseline">
                           ({item.comment})
                         </span>
                       )}
@@ -647,7 +687,6 @@ export default function CorrectionJsonContent({
                 )}
               </div>
             ) : (
-              // Changed text-slate-400 to text-muted-foreground
               <div className="text-center py-8 text-muted-foreground">暂无升格文内容。</div>
             )}
           </CardContent>
@@ -656,3 +695,4 @@ export default function CorrectionJsonContent({
     </Tabs>
   );
 }
+

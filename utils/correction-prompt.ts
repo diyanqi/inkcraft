@@ -305,7 +305,7 @@ export function getInterpretationPrompt(
       exampleJsonTargetComment = "// AI should ONLY output: { \"preamble\": \"...\" }";
       break;
     case "introductoryQuestionsAndAnswers":
-      specificInstruction = "Your task is to generate ONLY the 'introductoryQuestions' and 'questionAnswers' parts of the JSON structure. Ensure these are comprehensive and deeply analytical.";
+      specificInstruction = "Your task is to generate ONLY the 'introductoryQuestions' and 'questionAnswers' parts of the JSON structure. Ensure these are comprehensive and deeply analytical. 使用中文进行提问和解答。";
       exampleJsonTargetComment = "// AI should ONLY output: { \"introductoryQuestions\": [...], \"questionAnswers\": [...] }";
       break;
     case "paragraphAnalysis":
@@ -403,3 +403,35 @@ ${tonePrompt}
 
 请严格只输出所要求部分的JSON内容 (${targetSection})，不能有任何注释、代码块标记、markdown、自然语言说明。所有key都用双引号，内容如需引号请用转义。JSON内容必须严格符合上述对应部分的结构。`;
 }
+
+
+export function getEnglishContinuationStrengthenPrompt(originalText: string, essayText: string) {
+  return `你是一个专业的英语写作助手，擅长帮助用户夯实英语写作基础。你的任务是根据用户提供的题目和续写作文，识别续写作文中基础性的问题（如语法错误、不恰当的词汇、搭配不当、句式错误、中式英语、逻辑不清、常识错误等），并提供纠正后的句子，同时确保不改变原文的故事情节、人物设定、时态和语体风格。不要添加、删除或修改任何情节或信息。你的输出只能是以JSON格式展现的纠正内容，不允许包含任何其他说明、注释或格式。
+
+具体要求：
+1. 识别并纠正语法错误（如主谓一致、时态错误等）；
+2. 将不恰当或错误的词汇替换为正确且自然的词汇；
+3. 指出中式英语的表达并修改；
+4. 对于不符合常识的逻辑性错误，进行修改；
+5. 提供简洁的点评，说明纠正的原因和改进的效果。
+
+作文题：
+${originalText}
+
+待纠正的续写：
+${essayText}
+
+请提供纠正后的合法JSON内容，格式严格按照：
+{
+  "<纠正前原文的一句话>": {
+    "纠正": "<纠正后的一句话>",
+    "点评": "<纠正了什么内容，为什么这样纠正，改进的效果是什么>"
+  },
+  ...
+}
+
+挑选4~5处进行分析和纠正，不用每句话。
+以句号.为每一句话的分隔单位。
+请严格只输出JSON，不能有任何注释、代码块标记、markdown、自然语言说明。所有key都用双引号，内容如需引号请用转义。`
+}
+

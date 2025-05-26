@@ -8,6 +8,7 @@ import {
   generatePureUpgradation,
   generateScore,
   generateUpgradation,
+  generateStrengthenFoundation,
 } from "@/utils/generate-continuation"; // Assuming these are compatible or you'll adapt
 import { generateTitle, generateIcon } from "@/utils/generate-metadata";
 
@@ -88,61 +89,59 @@ export const correctionFunctions = [
         await util.create(correctionData);
         logger.info("Initial correction created", { uuid, type: finalCorrectionType });
       });
-      
+
       // Update status for next logical step
       await util.updateByUuid(uuid, { status: baseCorrectionType === 'gaokao-english-continuation' ? 'generate-interpretation' : 'processing-essays' });
 
-
       // --------------------------------------------------------------------------
       // STEP 2: Generate Interpretation (if applicable, once for all)
-      //           Only for gaokao-english-continuation types.
       // --------------------------------------------------------------------------
       if (baseCorrectionType === 'gaokao-english-continuation') {
         logger.info("Step: generate-interpretation (orchestrator)", { uuid });
-        
+
         const preambleJson = await step.run("generate-preamble", async () => {
           logger.info("Sub-step: generate-preamble", { uuid });
-          return generateInterpretationPart(formData.originalText, formData.tone, formData.model, "preamble" );
+          return generateInterpretationPart(formData.originalText, formData.tone, formData.model, "preamble");
         });
         if (!preambleJson || typeof preambleJson.preamble !== "string") {
-            logger.error("Failed to generate or parse preamble.", { uuid, preambleJson });
-            throw new Error("Failed to generate or parse preamble.");
+          logger.error("Failed to generate or parse preamble.", { uuid, preambleJson });
+          throw new Error("Failed to generate or parse preamble.");
         }
 
         const iqAndAJson = await step.run("generate-introductory-questions-and-answers", async () => {
-            logger.info("Sub-step: generate-introductory-questions-and-answers", { uuid });
-            return generateInterpretationPart(formData.originalText, formData.tone, formData.model, "introductoryQuestionsAndAnswers");
+          logger.info("Sub-step: generate-introductory-questions-and-answers", { uuid });
+          return generateInterpretationPart(formData.originalText, formData.tone, formData.model, "introductoryQuestionsAndAnswers");
         });
         if (!iqAndAJson || !Array.isArray(iqAndAJson.introductoryQuestions) || !Array.isArray(iqAndAJson.questionAnswers)) {
-            logger.error("Failed to generate or parse IQ and Answers.", { uuid, iqAndAJson });
-            throw new Error("Failed to generate or parse introductory questions and answers.");
+          logger.error("Failed to generate or parse IQ and Answers.", { uuid, iqAndAJson });
+          throw new Error("Failed to generate or parse introductory questions and answers.");
         }
 
         const paragraphAnalysisJson = await step.run("generate-paragraph-analysis", async () => {
-            logger.info("Sub-step: generate-paragraph-analysis", { uuid });
-            return generateInterpretationPart(formData.originalText, formData.tone, formData.model, "paragraphAnalysis");
+          logger.info("Sub-step: generate-paragraph-analysis", { uuid });
+          return generateInterpretationPart(formData.originalText, formData.tone, formData.model, "paragraphAnalysis");
         });
         if (!paragraphAnalysisJson || !Array.isArray(paragraphAnalysisJson.paragraphAnalysis)) {
-            logger.error("Failed to generate or parse paragraph analysis.", { uuid, paragraphAnalysisJson });
-            throw new Error("Failed to generate or parse paragraph analysis.");
+          logger.error("Failed to generate or parse paragraph analysis.", { uuid, paragraphAnalysisJson });
+          throw new Error("Failed to generate or parse paragraph analysis.");
         }
 
         const writingOutlineJson = await step.run("generate-writing-outline", async () => {
-            logger.info("Sub-step: generate-writing-outline", { uuid });
-            return generateInterpretationPart(formData.originalText, formData.tone, formData.model, "writingOutline");
+          logger.info("Sub-step: generate-writing-outline", { uuid });
+          return generateInterpretationPart(formData.originalText, formData.tone, formData.model, "writingOutline");
         });
         if (!writingOutlineJson || typeof writingOutlineJson.writingOutline !== "object" || writingOutlineJson.writingOutline === null) {
-            logger.error("Failed to generate or parse writing outline.", { uuid, writingOutlineJson });
-            throw new Error("Failed to generate or parse writing outline.");
+          logger.error("Failed to generate or parse writing outline.", { uuid, writingOutlineJson });
+          throw new Error("Failed to generate or parse writing outline.");
         }
-        
+
         const extendedVocabularyJson = await step.run("generate-extended-vocabulary", async () => {
-            logger.info("Sub-step: generate-extended-vocabulary", { uuid });
-            return generateInterpretationPart(formData.originalText, formData.tone, formData.model, "extendedVocabulary");
+          logger.info("Sub-step: generate-extended-vocabulary", { uuid });
+          return generateInterpretationPart(formData.originalText, formData.tone, formData.model, "extendedVocabulary");
         });
         if (!extendedVocabularyJson || typeof extendedVocabularyJson.extendedVocabulary !== "object" || extendedVocabularyJson.extendedVocabulary === null) {
-            logger.error("Failed to generate or parse extended vocabulary.", { uuid, extendedVocabularyJson });
-            throw new Error("Failed to generate or parse extended vocabulary.");
+          logger.error("Failed to generate or parse extended vocabulary.", { uuid, extendedVocabularyJson });
+          throw new Error("Failed to generate or parse extended vocabulary.");
         }
 
         sharedInterpretation = {
@@ -152,47 +151,46 @@ export const correctionFunctions = [
           writing_framework_construction: { sections: [] as { points: string[] }[] },
           vocabulary_and_phrases_for_continuation: { topics: [] as any[] },
         };
-        
+
         if (Array.isArray(iqAndAJson.introductoryQuestions) && Array.isArray(iqAndAJson.questionAnswers)) {
-            for (let i = 0; i < iqAndAJson.introductoryQuestions.length; i++) {
-              const question = iqAndAJson.introductoryQuestions[i];
-              const answerObj = iqAndAJson.questionAnswers.find((ans: any) => ans.question === question) || iqAndAJson.questionAnswers[i];
-              sharedInterpretation.guiding_problems.push({
-                question: typeof question === "string" ? question : "",
-                answer: answerObj && typeof answerObj.answer === "string" ? answerObj.answer : "",
-              });
-            }
+          for (let i = 0; i < iqAndAJson.introductoryQuestions.length; i++) {
+            const question = iqAndAJson.introductoryQuestions[i];
+            const answerObj = iqAndAJson.questionAnswers.find((ans: any) => ans.question === question) || iqAndAJson.questionAnswers[i];
+            sharedInterpretation.guiding_problems.push({
+              question: typeof question === "string" ? question : "",
+              answer: answerObj && typeof answerObj.answer === "string" ? answerObj.answer : "",
+            });
+          }
         }
         if (Array.isArray(paragraphAnalysisJson.paragraphAnalysis)) {
-            sharedInterpretation.paragraph_analysis = paragraphAnalysisJson.paragraphAnalysis.map((item: any) => ({
-              original_text: item.originText || item.original_text || "", // Handle potential variations
-              interpretation: item.details || item.interpretation || "",
-            }));
+          sharedInterpretation.paragraph_analysis = paragraphAnalysisJson.paragraphAnalysis.map((item: any) => ({
+            original_text: item.originText || item.original_text || "", // Handle potential variations
+            interpretation: item.details || item.interpretation || "",
+          }));
         }
         if (typeof writingOutlineJson.writingOutline === "object" && writingOutlineJson.writingOutline !== null) {
-            for (const key of Object.keys(writingOutlineJson.writingOutline)) {
-              const pointsArr = Array.isArray(writingOutlineJson.writingOutline[key]) ? writingOutlineJson.writingOutline[key] : [];
-              sharedInterpretation.writing_framework_construction.sections.push({ points: pointsArr });
-            }
+          for (const key of Object.keys(writingOutlineJson.writingOutline)) {
+            const pointsArr = Array.isArray(writingOutlineJson.writingOutline[key]) ? writingOutlineJson.writingOutline[key] : [];
+            sharedInterpretation.writing_framework_construction.sections.push({ points: pointsArr });
+          }
         }
         if (typeof extendedVocabularyJson.extendedVocabulary === "object" && extendedVocabularyJson.extendedVocabulary !== null) {
-            for (const topicName in extendedVocabularyJson.extendedVocabulary) {
-              const topic = extendedVocabularyJson.extendedVocabulary[topicName];
-              sharedInterpretation.vocabulary_and_phrases_for_continuation.topics.push({
-                topic_name: topicName,
-                vocabulary: Array.isArray(topic.vocabulary) ? topic.vocabulary : [],
-                phrases: Array.isArray(topic.phrases) ? topic.phrases : [],
-                useful_sentences: Array.isArray(topic.sentences) ? topic.sentences : [],
-              });
-            }
+          for (const topicName in extendedVocabularyJson.extendedVocabulary) {
+            const topic = extendedVocabularyJson.extendedVocabulary[topicName];
+            sharedInterpretation.vocabulary_and_phrases_for_continuation.topics.push({
+              topic_name: topicName,
+              vocabulary: Array.isArray(topic.vocabulary) ? topic.vocabulary : [],
+              phrases: Array.isArray(topic.phrases) ? topic.phrases : [],
+              useful_sentences: Array.isArray(topic.sentences) ? topic.sentences : [],
+            });
+          }
         }
         logger.info("Shared interpretation generated", { uuid });
         await util.updateByUuid(uuid, { status: "processing" });
       }
 
-
       // --------------------------------------------------------------------------
-      // STEP 3: Process each essay (Score, Upgradation, Pure Upgradation)
+      // STEP 3: Process each essay (Score, Upgradation, Pure Upgradation, Strengthen Foundation)
       // --------------------------------------------------------------------------
       logger.info("Step: processing-essays", { uuid, count: formData.isBatch ? formData.essayTexts?.length : 1 });
       let individualEssayResults: any[] = [];
@@ -222,31 +220,38 @@ export const correctionFunctions = [
 
         let upgradationResult: any = null;
         let pureUpgradationResult: any = null;
+        let strengthenFoundationResult: any = null;
 
         // Sub-Step 3.2 & 3.3: Upgradation (only for gaokao-english-continuation)
         if (baseCorrectionType === 'gaokao-english-continuation') {
-            upgradationResult = await step.run(`generate-upgradation${stepIdSuffix}`, async () => {
-                logger.info(`Sub-step: generate-upgradation${essayLoggerSuffix}`, { uuid });
-                return generateUpgradation(formData.originalText, currentEssayText, formData.tone, formData.model);
-            });
+          upgradationResult = await step.run(`generate-upgradation${stepIdSuffix}`, async () => {
+            logger.info(`Sub-step: generate-upgradation${essayLoggerSuffix}`, { uuid });
+            return generateUpgradation(formData.originalText, currentEssayText, formData.tone, formData.model);
+          });
 
-            pureUpgradationResult = await step.run(`generate-pure-upgradation${stepIdSuffix}`, async () => {
-                logger.info(`Sub-step: generate-pure-upgradation${essayLoggerSuffix}`, { uuid });
-                return generatePureUpgradation(formData.originalText, currentEssayText, formData.model);
-            });
+          pureUpgradationResult = await step.run(`generate-pure-upgradation${stepIdSuffix}`, async () => {
+            logger.info(`Sub-step: generate-pure-upgradation${essayLoggerSuffix}`, { uuid });
+            return generatePureUpgradation(formData.originalText, currentEssayText, formData.model);
+          });
+
+          // Sub-Step 3.4: Strengthen Foundation
+          strengthenFoundationResult = await step.run(`generate-strengthen-foundation${stepIdSuffix}`, async () => {
+            logger.info(`Sub-step: generate-strengthen-foundation${essayLoggerSuffix}`, { uuid });
+            return generateStrengthenFoundation(formData.originalText, currentEssayText, formData.model);
+          });
         }
-        
+
         individualEssayResults.push({
           answer: currentEssayText,
           score_dimensions: scoreResult.score_dimensions,
           score: individualScore,
           upgradation: baseCorrectionType === 'gaokao-english-continuation' ? (upgradationResult?.upgradation || null) : null,
           pureUpgradation: baseCorrectionType === 'gaokao-english-continuation' ? (pureUpgradationResult?.pure_upgradation || null) : null,
+          strengthenFoundation: baseCorrectionType === 'gaokao-english-continuation' ? (strengthenFoundationResult?.strengthen_foundation || null) : null,
         });
         logger.info(`Finished processing for essay${essayLoggerSuffix}`, { uuid });
       }
       await util.updateByUuid(uuid, { status: "processing" });
-
 
       // --------------------------------------------------------------------------
       // STEP 4: Aggregate results and Update record
@@ -255,7 +260,7 @@ export const correctionFunctions = [
         logger.info("Step: update-correction-with-results", { uuid });
         const currentCorrection = await util.getByUuid(uuid);
         if (!currentCorrection) throw new Error(`Correction not found for UUID: ${uuid} before final content update`);
-        
+
         let newContentObject: any = JSON.parse(currentCorrection.content || "{}"); // Start with existing content
 
         if (formData.isBatch) {
@@ -263,16 +268,16 @@ export const correctionFunctions = [
         } else {
           // For single, merge results into the main content object
           // Ensure 'question' and 'referenceAnswer' are preserved from initial creation
-          newContentObject = { 
-            question: newContentObject.question, 
-            referenceAnswer: newContentObject.referenceAnswer, 
-            ...individualEssayResults[0] 
+          newContentObject = {
+            question: newContentObject.question,
+            referenceAnswer: newContentObject.referenceAnswer,
+            ...individualEssayResults[0]
           };
         }
-        
+
         // Add shared interpretation if generated
         if (sharedInterpretation) {
-            newContentObject.interpretation = sharedInterpretation;
+          newContentObject.interpretation = sharedInterpretation;
         }
 
         const finalScore = formData.isBatch
@@ -312,7 +317,7 @@ export const correctionFunctions = [
       await step.run("generate-icon", async () => {
         logger.info("Step: generate-icon", { uuid });
         sharedIcon = await generateIcon(formData.originalText); // formData.originalText
-        
+
         // Fetch current correction to ensure we have the latest title (either user-provided or generated)
         const correctionToFinalize = await util.getByUuid(uuid);
         if (!correctionToFinalize) throw new Error(`Correction not found for UUID: ${uuid} in generate-icon`);
@@ -334,3 +339,4 @@ export const correctionFunctions = [
     }
   ),
 ];
+

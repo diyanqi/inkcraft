@@ -10,7 +10,9 @@ import {
   getEnglishContinuationPurePrompt,
   getEnglishContinuationScorePrompt,
   getEnglishContinuationUpgradationPrompt,
-  getInterpretationPrompt} from './correction-prompt';
+  getInterpretationPrompt,
+  getEnglishContinuationStrengthenPrompt
+} from './correction-prompt';
 
 // Helper function to calculate the 'input' parameter for Youdao signature
 
@@ -408,6 +410,92 @@ export async function generateInterpretationPart(
 
   } catch (error) {
     console.error(`Error generating topic interpretation for section ${targetSection}:`, error);
+    return null;
+  }
+}
+
+/**
+* Generates foundational improvements for the user's essay continuation text.
+* @param originalText The original text prompt.
+* @param essayText The user's essay continuation text to improve.
+* @param model The model parameter.
+* @returns A Promise resolving to an object containing the parsed JSON and the generated foundational improvements, or null if generation fails.
+*/
+export async function generateStrengthenFoundation(
+  originalText: string,
+  essayText: string,
+  model: string
+): Promise<{ strengthen_foundation: any[] } | null> {
+  console.log("Initiating strengthen foundation...");
+
+  let fullResponseText = '';
+
+  try {
+    const aiModel = getModelByName(model);
+
+    console.log("--- Streaming AI response for strengthen foundation ---");
+
+    const streamResult = await streamText({
+      model: aiModel,
+      messages: [
+        {
+          role: 'system',
+          content: getEnglishContinuationStrengthenPrompt(originalText, essayText),
+        },
+      ],
+      maxTokens: 6144,
+      temperature: 0.8,
+    });
+
+    for await (const part of streamResult.fullStream) {
+      if (part.type === 'text-delta' && part.textDelta) {
+        const chunk = part.textDelta;
+        process.stdout.write(chunk);
+        fullResponseText += chunk;
+      }
+    }
+
+    console.log("\n--- End of AI response stream for strengthen foundation ---");
+
+    if (!fullResponseText.trim()) {
+      console.warn("AI response for strengthen foundation was empty or only whitespace.");
+      return null;
+    }
+
+    const startObject = fullResponseText.indexOf('{');
+    const endObject = fullResponseText.lastIndexOf('}');
+    if (startObject === -1 || endObject === -1 || startObject >= endObject) {
+      console.error("Invalid JSON structure received for strengthen foundation (no valid object found):", fullResponseText);
+      return null;
+    }
+    const jsonString = fullResponseText.substring(startObject, endObject + 1);
+
+    let json: any;
+    try {
+      json = JSON.parse(jsonString);
+      console.log('Parsed JSON:', json);
+    } catch (parseError) {
+      console.error("Failed to parse JSON for strengthen foundation:", parseError);
+      console.error("Received JSON string:", jsonString);
+      return null;
+    }
+
+    // 组装目标格式
+    const strengthen_foundation: any[] = [];
+    for (const key in json) {
+      if (Object.prototype.hasOwnProperty.call(json, key)) {
+        const item = json[key];
+        strengthen_foundation.push({
+          sentence: key,
+          correction: item.纠正 || '',
+          comment: item.点评 || ''
+        });
+      }
+    }
+
+    return { strengthen_foundation };
+  } catch (error) {
+    console.error("Error generating strengthen foundation:", error);
     return null;
   }
 }
