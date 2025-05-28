@@ -1,3 +1,5 @@
+// app/dashboard/correction/[uuid]/CorrectionJsonContent.tsx
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -10,7 +12,7 @@ import {
   ListChecks,
   ArrowUpCircle,
   FileSignature,
-  Hammer, // Added for Strengthen Foundation tab
+  Hammer,
 } from "lucide-react";
 import {
   PolarAngleAxis,
@@ -28,6 +30,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { findContextSimple } from "@/utils/markdownUtils";
+import { CorrectionJson } from "@/types/correction"; // Import CorrectionJson type
 
 const chartConfig = {
   desktop: {
@@ -66,16 +69,16 @@ const ParagraphRenderer: React.FC<{ text: string; useDropCap: boolean }> = ({ te
 };
 
 interface CorrectionJsonContentProps {
-  data: any;
+  data: CorrectionJson; // Use the imported type
   scoreLabels: { [key: string]: string };
   showOriginalInPureUpgrade: boolean;
   setShowOriginalInPureUpgrade: (value: boolean) => void;
   showAnnotationsInPureUpgrade: boolean;
   setShowAnnotationsInPureUpgrade: (value: boolean) => void;
-  showOriginalInStrengthen: boolean; // Added for Strengthen Foundation
-  setShowOriginalInStrengthen: (value: boolean) => void; // Added for Strengthen Foundation
-  showAnnotationsInStrengthen: boolean; // Added for Strengthen Foundation
-  setShowAnnotationsInStrengthen: (value: boolean) => void; // Added for Strengthen Foundation
+  showOriginalInStrengthen: boolean; // Added prop
+  setShowOriginalInStrengthen: (value: boolean) => void; // Added prop
+  showAnnotationsInStrengthen: boolean; // Added prop
+  setShowAnnotationsInStrengthen: (value: boolean) => void; // Added prop
 }
 
 export default function CorrectionJsonContent({
@@ -92,12 +95,12 @@ export default function CorrectionJsonContent({
 }: CorrectionJsonContentProps) {
   const {
     question,
-    answer,
+    answer, // answer can be string | undefined
     score_dimensions,
     interpretation,
     upgradation,
     pureUpgradation,
-    strengthenFoundation, // Added for Strengthen Foundation tab
+    strengthenFoundation, // Added
   } = data;
 
   const {
@@ -120,8 +123,12 @@ export default function CorrectionJsonContent({
   const radarData = scoreKeys.map((key) => ({
     dimension: scoreLabels[key] || key,
     score: score_dimensions[key]?.score || 0,
-    fullMark: 15,
+    fullMark: 15, // Assuming max score is 15 for radar chart scaling
   }));
+
+  // Ensure answer is a string for findContextSimple
+  const studentAnswerText = answer || '';
+
 
   return (
     <Tabs defaultValue="origin" className="w-full">
@@ -431,8 +438,6 @@ export default function CorrectionJsonContent({
       </TabsContent>
 
       {/* Tab5: 夯实基础 */}
-
-      {/* Tab5: 夯实基础 */}
       <TabsContent value="strengthen_foundation">
         <Card>
           <CardHeader className="flex flex-row items-center gap-2">
@@ -440,18 +445,43 @@ export default function CorrectionJsonContent({
             <CardTitle>夯实基础</CardTitle>
           </CardHeader>
           <CardContent className="rounded-b-lg p-6">
+             <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mb-6">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="showOriginalStrengthen"
+                  checked={showOriginalInStrengthen}
+                  onCheckedChange={(checked) => setShowOriginalInStrengthen(!!checked)}
+                  className="border-slate-500 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                />
+                <Label htmlFor="showOriginalStrengthen" className="text-sm font-medium text-foreground/80">
+                  原文对照
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="showAnnotationsStrengthen"
+                  checked={showAnnotationsInStrengthen}
+                  onCheckedChange={(checked) => setShowAnnotationsInStrengthen(!!checked)}
+                  className="border-slate-500 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                />
+                <Label htmlFor="showAnnotationsStrengthen" className="text-sm font-medium text-foreground/80">
+                  显示批注
+                </Label>
+              </div>
+            </div>
             {Array.isArray(strengthenFoundation) && strengthenFoundation.length > 0 ? (
               <>
                 <SectionTitle>基础纠错</SectionTitle>
                 <ul className="space-y-4">
                   {strengthenFoundation.map(
-                    (item: { sentence: string; correction: string; comment: string }, idx: number) => {
-                      const contextParts = findContextSimple(answer, item.sentence);
+                    (item: { sentence: string; correction: string; comment?: string }, idx: number) => {
+                      // Pass studentAnswerText (string) to findContextSimple
+                      const contextParts = showOriginalInStrengthen ? findContextSimple(studentAnswerText, item.sentence) : null;
                       return (
                         <li key={idx} className="p-3 border rounded-md">
                           <p className="font-medium text-foreground/80">{item.sentence}</p>
                           <p className="my-1">→ <strong className="text-green-600 dark:text-green-500">{item.correction}</strong></p>
-                          <p className="text-sm text-foreground/90">{item.comment}</p>
+                          {showAnnotationsInStrengthen && item.comment && <p className="text-sm text-foreground/90">{item.comment}</p>}
                           {contextParts && (
                             <div className="mt-2 text-xs text-foreground/70 p-2 bg-muted/40 rounded">
                               <p className="font-semibold mb-0.5 text-foreground/80">原文片段参考:</p>
@@ -489,7 +519,8 @@ export default function CorrectionJsonContent({
                 <SectionTitle>词汇升级</SectionTitle>
                 <ul className="space-y-4">
                   {vocabulary_upgradation.map((item, idx) => {
-                    const contextParts = findContextSimple(answer, item.original_word);
+                     // Pass studentAnswerText (string) to findContextSimple
+                    const contextParts = findContextSimple(studentAnswerText, item.original_word);
                     return (
                       <li key={idx} className="p-3 border rounded-md">
                         <p>
@@ -525,7 +556,8 @@ export default function CorrectionJsonContent({
                 <SectionTitle>短语升级</SectionTitle>
                 <ul className="space-y-4">
                   {phrase_upgradation.map((item, idx) => {
-                    const contextParts = findContextSimple(answer, item.original_phrase);
+                     // Pass studentAnswerText (string) to findContextSimple
+                    const contextParts = findContextSimple(studentAnswerText, item.original_phrase);
                     return (
                       <li key={idx} className="p-3 border rounded-md">
                         <p className="font-medium text-foreground/80">{item.original_phrase}</p>
@@ -562,7 +594,8 @@ export default function CorrectionJsonContent({
                 <SectionTitle>句型升级</SectionTitle>
                 <ul className="space-y-4">
                   {sentence_upgradation.map((item, idx) => {
-                    const contextParts = findContextSimple(answer, item.original_sentence);
+                     // Pass studentAnswerText (string) to findContextSimple
+                    const contextParts = findContextSimple(studentAnswerText, item.original_sentence);
                     return (
                       <li key={idx} className="p-3 border rounded-md">
                         <p className="font-medium text-foreground/80">{item.original_sentence}</p>
@@ -596,7 +629,8 @@ export default function CorrectionJsonContent({
                 <SectionTitle>细节描写升级</SectionTitle>
                 <ul className="space-y-4">
                   {detail_description_upgradation.map((item, idx) => {
-                    const contextParts = findContextSimple(answer, item.original_description);
+                     // Pass studentAnswerText (string) to findContextSimple
+                    const contextParts = findContextSimple(studentAnswerText, item.original_description);
                     return (
                       <li key={idx} className="p-3 border rounded-md">
                         <p className="font-medium text-foreground/80">{item.original_description}</p>
@@ -666,7 +700,8 @@ export default function CorrectionJsonContent({
             {Array.isArray(pureUpgradation) && pureUpgradation.length > 0 ? (
               <div className="leading-relaxed text-base font-serif">
                 {pureUpgradation.map(
-                  (item: { sentence: string; upgradation: string; comment: string; }, idx: number) => (
+                  // Ensure item type matches the array type
+                  (item: { sentence: string; upgradation: string; comment?: string; }, idx: number) => (
                     <React.Fragment key={idx}>
                       {showOriginalInPureUpgrade && item.sentence && (
                         <span className="text-xs text-muted-foreground italic mr-1 opacity-90">
@@ -676,7 +711,7 @@ export default function CorrectionJsonContent({
                       <span className="text-foreground font-medium">
                         {item.upgradation}
                       </span>
-                      {showAnnotationsInPureUpgrade && item.comment && (
+                      {showAnnotationsInPureUpgrade && item.comment && ( // Check if item.comment exists
                         <span className="ml-1 mr-0.5 text-[0.7rem] leading-none text-blue-600 dark:text-blue-400 italic px-0.5 align-baseline">
                           ({item.comment})
                         </span>
@@ -695,4 +730,3 @@ export default function CorrectionJsonContent({
     </Tabs>
   );
 }
-

@@ -20,7 +20,6 @@ export default function DashboardLayout({
       <AppSidebar variant="inset" />
       <SidebarInset
         style={{
-          height: "98vh", // 固定高度
           display: "flex",
           flexDirection: "column",
         }}
