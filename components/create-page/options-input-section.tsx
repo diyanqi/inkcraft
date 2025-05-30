@@ -48,7 +48,6 @@ export function OptionsInputSection({ form }: OptionsInputSectionProps) {
                                 <SelectItem value="qwen">通义千问 3</SelectItem>
                                 {/* <SelectItem value="glm">智谱清言 GLM-4</SelectItem> */}
                                 <SelectItem value="gemini">Gemini 2</SelectItem>
-                                <SelectItem value="gemini-lite">Gemini 2 Lite</SelectItem>
                             </SelectContent>
                         </Select>
                         <FormMessage />

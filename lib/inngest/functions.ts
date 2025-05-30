@@ -130,7 +130,8 @@ export const correctionFunctions = [
           logger.info("Sub-step: generate-writing-outline", { uuid });
           return generateInterpretationPart(formData.originalText, formData.tone, formData.model, "writingOutline");
         });
-        if (!writingOutlineJson || typeof writingOutlineJson.writingOutline !== "object" || writingOutlineJson.writingOutline === null) {
+        console.log("Writing Outline JSON:", writingOutlineJson);
+        if (!writingOutlineJson || typeof writingOutlineJson.writingOutline !== "object") {
           logger.error("Failed to generate or parse writing outline.", { uuid, writingOutlineJson });
           throw new Error("Failed to generate or parse writing outline.");
         }
@@ -139,7 +140,7 @@ export const correctionFunctions = [
           logger.info("Sub-step: generate-extended-vocabulary", { uuid });
           return generateInterpretationPart(formData.originalText, formData.tone, formData.model, "extendedVocabulary");
         });
-        if (!extendedVocabularyJson || typeof extendedVocabularyJson.extendedVocabulary !== "object" || extendedVocabularyJson.extendedVocabulary === null) {
+        if (!extendedVocabularyJson || typeof extendedVocabularyJson.extendedVocabulary !== "object") {
           logger.error("Failed to generate or parse extended vocabulary.", { uuid, extendedVocabularyJson });
           throw new Error("Failed to generate or parse extended vocabulary.");
         }
