@@ -1,7 +1,7 @@
 import { auth } from "@/auth"
  
 export default auth((req) => {
-  const allowedPaths = ["/login", "/", "/register", "/verify-request", "/api/inngest"]
+  const allowedPaths = ["/login", "/", "/register", "/verify-request", "/api/inngest", "/shared-correction"]
   if (!req.auth && !allowedPaths.includes(req.nextUrl.pathname)) {
     const newUrl = new URL("/login", req.nextUrl.origin)
     return Response.redirect(newUrl)

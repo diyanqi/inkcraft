@@ -19,9 +19,11 @@ import {
     DrawerHeader,
     DrawerTitle,
 } from "@/components/ui/drawer";
-import { Input } from "@/components/ui/input"; // Import Input component
-import { Label } from "@/components/ui/label"; // Optional: Import Label for input
+// Removed Input import
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox"; // Import Checkbox component
 import { Loader2 } from "lucide-react";
+import type { CheckedState } from "@radix-ui/react-checkbox"; // Import CheckedState type
 
 interface DeleteConfirmationDialogProps {
     isOpen: boolean;
@@ -40,21 +42,30 @@ export function DeleteConfirmationDialog({
 }: DeleteConfirmationDialogProps) {
     const isDesktop = useMediaQuery("(min-width: 768px)"); // Adjust breakpoint as needed
 
-    // State to hold the input value
-    const [confirmationInput, setConfirmationInput] = React.useState("");
-
-    // Required text for confirmation
-    const requiredConfirmationText = "确认删除";
+    // State to hold the checkbox checked state
+    const [isChecked, setIsChecked] = React.useState(false);
 
     // Determine if the confirm button should be enabled
-    const isConfirmButtonEnabled = confirmationInput === requiredConfirmationText && !isLoading;
+    // Button is enabled if checkbox is checked AND not loading
+    const isConfirmButtonEnabled = isChecked && !isLoading;
 
-    // Effect to clear the input when the dialog/drawer closes
+    // Effect to clear the checkbox state when the dialog/drawer closes
     React.useEffect(() => {
         if (!isOpen) {
-            setConfirmationInput("");
+            setIsChecked(false);
         }
     }, [isOpen]);
+
+    // Handler for checkbox change
+    const handleCheckedChange = (checked: CheckedState) => {
+        // Only update state if the checked value is a boolean (true or false)
+        // Ignore the 'indeterminate' state if the checkbox supports it,
+        // as we only care about a definitive checked/unchecked state for confirmation.
+        if (typeof checked === 'boolean') {
+            setIsChecked(checked);
+        }
+    };
+
 
     const ConfirmationContent = (
         <>
@@ -71,18 +82,22 @@ export function DeleteConfirmationDialog({
                 </DialogDescription>
             </DialogHeader>
             <div className="py-4">
-                {/* Add input field for confirmation */}
-                <Label htmlFor="delete-confirmation-input" className="sr-only">
-                    请输入 '{requiredConfirmationText}' 进行确认
-                </Label>
-                <Input
-                    id="delete-confirmation-input"
-                    placeholder={`请输入 '${requiredConfirmationText}' 进行确认`}
-                    value={confirmationInput}
-                    onChange={(e) => setConfirmationInput(e.target.value)}
-                    disabled={isLoading} // Disable input while loading
-                    className="w-full"
-                />
+                {/* Add checkbox for confirmation */}
+                <div className="flex items-center space-x-2">
+                    <Checkbox
+                        id="confirm-delete-checkbox"
+                        checked={isChecked}
+                        // Use the new handler that correctly processes CheckedState
+                        onCheckedChange={handleCheckedChange}
+                        disabled={isLoading} // Disable checkbox while loading
+                    />
+                    <Label
+                        htmlFor="confirm-delete-checkbox"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                        我了解此操作不可撤销，并且无法退款，并确认删除。
+                    </Label>
+                </div>
             </div>
             <DialogFooter className={isDesktop ? "" : "flex-col gap-2 sm:px-0"}>
                 {isDesktop ? (

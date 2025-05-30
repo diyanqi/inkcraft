@@ -1,6 +1,5 @@
 // hooks/use-correction.ts
 import { useEffect, useState, useMemo } from "react";
-import { useParams } from "next/navigation";
 import { Correction, CorrectionJson } from "@/types/correction"; // Import types
 
 interface UseCorrectionResult {
