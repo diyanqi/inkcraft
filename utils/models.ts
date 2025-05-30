@@ -37,11 +37,17 @@ export const nvidia = createOpenAI({
   compatibility: 'compatible',
 })
 
+export const glm = createOpenAI({
+  baseURL: process.env.GLM_API_BASEURL || '',
+  apiKey: process.env.GLM_API_APIKEY || '',
+  compatibility: 'compatible',
+})
+
 const modelMapping = {
-  'llama': nvidia('nvidia/llama-3.3-nemotron-super-49b-v1'),
+  'llama': nvidia('meta/llama-4-scout-17b-16e-instruct'),
   'deepseek': deepseek('deepseek-chat'),
   'qwen': nvidia('qwen/qwen3-235b-a22b'),
-  'glm': siliconflow('THUDM/GLM-Z1-9B-0414'),
+  'glm': glm('GLM-4-Flash-250414'),
   'gpt4': siliconflow('gpt-3.5-turbo'),
   // 'glm': glm('glm-4-flash-250414'),
   'gemini': gemini('gemini-2.0-flash'),

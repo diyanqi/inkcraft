@@ -329,7 +329,7 @@ export default function CorrectionDetailPage() {
                                 (!parsedFullJsonContent.question && !parsedFullJsonContent.interpretation)
                             }
                         >
-                            {loadingPresentation ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />生成中...</> : "演示文稿 (公用)"}
+                            {loadingPresentation ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />生成中...</> : "演示文稿"}
                         </Button>
                         <Dialog open={openExportDialog} onOpenChange={setOpenExportDialog}>
                             <DialogTrigger asChild>
