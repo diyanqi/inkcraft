@@ -80,7 +80,19 @@ export function useBatchOcrProcessing() {
         Array.from(files).forEach(file => {
             const id = uuidv4();
             const previewUrl = URL.createObjectURL(file);
-            newItems.push({ id, file, previewUrl, ocrText: "", ocrStatus: 'idle' });
+            // 去掉文件名中的后缀名作为默认备注
+            const fileName = file.name;
+            const lastDotIndex = fileName.lastIndexOf('.');
+            const noteWithoutExtension = lastDotIndex !== -1 ? fileName.substring(0, lastDotIndex) : fileName;
+            
+            newItems.push({ 
+                id, 
+                file, 
+                previewUrl, 
+                ocrText: "", 
+                ocrStatus: 'idle',
+                note: noteWithoutExtension // 使用去掉后缀名的文件名作为备注
+            });
             newQueueItems.push({ batchItemId: id, file });
         });
 
@@ -100,6 +112,11 @@ export function useBatchOcrProcessing() {
 
     const updateBatchItemText = useCallback((id: string, text: string) => {
         setBatchEssays(prev => prev.map(item => item.id === id ? { ...item, ocrText: text } : item));
+    }, []);
+
+    // 添加更新图片备注的函数
+    const updateBatchItemNote = useCallback((id: string, note: string) => {
+        setBatchEssays(prev => prev.map(item => item.id === id ? { ...item, note } : item));
     }, []);
 
      // Drag and drop handlers for reordering
@@ -143,6 +160,7 @@ export function useBatchOcrProcessing() {
         addFilesToBatch,
         removeItemFromBatch,
         updateBatchItemText,
+        updateBatchItemNote, // 导出更新图片备注的函数
         handleDragStart,
         handleDragOver,
         handleDrop,

@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/chart";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { findContextSimple } from "@/utils/markdownUtils";
+import { findContextSimple } from "@/utils/markdown-utils";
 import { CorrectionJson } from "@/types/correction"; // Import CorrectionJson type
 
 const chartConfig = {

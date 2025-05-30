@@ -105,6 +105,62 @@ export function MetadataInputSection({ form, onOcrLoadingChange }: MetadataInput
     const originalTextHandlers = createFieldSpecificHandlers('originalText', originalTextPreview, setIsOriginalTextOcrLoading, setOriginalTextPreview);
     const referenceTextHandlers = createFieldSpecificHandlers('referenceText', referenceTextPreview, setIsReferenceTextOcrLoading, setReferenceTextPreview);
 
+    const triggerSentenceDetection = useCallback((text: string) => {
+        if (form.getValues("essayType") === "gaokao-english-continuation" && text) {
+            // Improved sentence splitting: handles '.', '。', '?', '!', and ensures they are likely sentence terminators.
+            // It splits by these terminators when followed by a space, newline, or end of string.
+            // It also handles cases where a quote might follow the terminator.
+            const sentences = text
+                .replace(/\s+/g, ' ')
+                .trim()
+                // Regex to split sentences: looks for terminators (. ! ? 。) followed by optional quote, then whitespace (or end of string).
+                // It tries to ensure that it's a proper sentence end, not just an abbreviation.
+                .split(/(?<=[.。?!]['"]?)(?:\s+|$)(?=(?:[A-ZÀ-ÖØ-ÞĀ-ž"']|[0-9]|\s*[A-ZÀ-ÖØ-ÞĀ-ž"']|\s*[0-9]))/g)
+                .map(s => s.trim())
+                .filter(s => s !== '');
+            if (sentences.length >= 2) {
+                let first = sentences[sentences.length - 2].trim();
+                let second = sentences[sentences.length - 1].trim();
+
+                const prefixPatterns = [/Paragraph\s*1:?/gi, /Para\s*1:?/gi, /Paragraph\s*2:?/gi, /Para\s*2:?/gi, /^1\.\s*/, /^2\.\s*/];
+                prefixPatterns.forEach(pattern => {
+                    first = first.replace(pattern, '').trim();
+                    second = second.replace(pattern, '').trim();
+                });
+
+                // Avoid setting if unchanged to prevent re-renders/cursor jumps
+                if (form.getValues("firstSentence") !== first) {
+                    form.setValue("firstSentence", first, { shouldValidate: true, shouldDirty: true });
+                }
+                if (form.getValues("secondSentence") !== second) {
+                    form.setValue("secondSentence", second, { shouldValidate: true, shouldDirty: true });
+                }
+                // toast.success("段首句已自动识别并填充"); // Optional: can be too noisy
+            } else {
+                // toast.error("无法识别足够的句子作为段首句，请确保原文至少包含两句话。"); // Optional: can be too noisy
+            }
+        }
+    }, [form]);
+
+    // Watch for essayType changes to potentially clear sentence fields or trigger detection
+    const essayType = form.watch("essayType");
+    const originalText = form.watch("originalText");
+
+    useEffect(() => {
+        if (essayType === "gaokao-english-continuation") {
+            triggerSentenceDetection(originalText || "");
+        } else {
+            // Clear sentence fields if essay type is not continuation, if they are not meant to be persisted
+            // Check if values exist before setting to avoid unnecessary re-renders or dirtying the form
+            if (form.getValues("firstSentence")) {
+                form.setValue("firstSentence", "", { shouldValidate: false, shouldDirty: false });
+            }
+            if (form.getValues("secondSentence")) {
+                form.setValue("secondSentence", "", { shouldValidate: false, shouldDirty: false });
+            }
+        }
+    }, [essayType, originalText, triggerSentenceDetection, form]);
+
 
     return (
         <Card>
@@ -113,6 +169,21 @@ export function MetadataInputSection({ form, onOcrLoadingChange }: MetadataInput
                 <CardDescription>录入原题及范文。</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4">
+                <FormField control={form.control} name="essayType" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>作文类型</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl><SelectTrigger className="w-full md:w-[220px]"><SelectValue placeholder="选择类型" /></SelectTrigger></FormControl>
+                            <SelectContent>
+                                <SelectItem value="gaokao-english-continuation">高考英语 读后续写</SelectItem>
+                                <SelectItem value="gaokao-english-practical" disabled>高考英语 应用文</SelectItem>
+                                <SelectItem value="gaokao-chinese-composition" disabled>高考语文 作文</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                )} />
+
                 <FormField control={form.control} name="title" render={({ field }) => (
                     <FormItem>
                         <FormLabel>标题 <span className="text-sm text-muted-foreground">*可选</span></FormLabel>
@@ -127,7 +198,7 @@ export function MetadataInputSection({ form, onOcrLoadingChange }: MetadataInput
                         <Tabs value={originalTextTab} onValueChange={setOriginalTextTab} className="w-full">
                             <TabsList className="grid w-full grid-cols-2"><TabsTrigger value="manual">手动输入</TabsTrigger><TabsTrigger value="ocr">图像识别</TabsTrigger></TabsList>
                             <TabsContent value="manual">
-                                <FormControl><Textarea placeholder="在这里输入原题题干…" className="min-h-[100px] max-h-[200px]" {...field} /></FormControl>
+                                <FormControl><Textarea placeholder="在这里输入原题题干…（可包含段首句，会自动识别）" className="min-h-[100px] max-h-[200px]" {...field} onChange={(e) => { field.onChange(e); triggerSentenceDetection(e.target.value);}} /></FormControl>
                                 <FormMessage />
                             </TabsContent>
                             <TabsContent value="ocr">
@@ -143,6 +214,25 @@ export function MetadataInputSection({ form, onOcrLoadingChange }: MetadataInput
                         </Tabs>
                     </FormItem>
                 )} />
+
+                {form.watch("essayType") === "gaokao-english-continuation" && (
+                    <>
+                        <FormField control={form.control} name="firstSentence" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>第一段段首句 {form.watch("essayType") === "gaokao-english-continuation" && <span className="text-destructive">*</span>}</FormLabel>
+                                <FormControl><input type="text" placeholder="请输入第一段段首句" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" {...field} value={field.value || ''} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                        <FormField control={form.control} name="secondSentence" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>第二段段首句 {form.watch("essayType") === "gaokao-english-continuation" && <span className="text-destructive">*</span>}</FormLabel>
+                                <FormControl><input type="text" placeholder="请输入第二段段首句" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" {...field} value={field.value || ''} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                    </>
+                )}
 
                 <FormField control={form.control} name="referenceText" render={({ field }) => (
                     <FormItem>
@@ -164,21 +254,6 @@ export function MetadataInputSection({ form, onOcrLoadingChange }: MetadataInput
                                 <FormMessage />
                             </TabsContent>
                         </Tabs>
-                    </FormItem>
-                )} />
-
-                <FormField control={form.control} name="essayType" render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>作文类型</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl><SelectTrigger className="w-full md:w-[220px]"><SelectValue placeholder="选择类型" /></SelectTrigger></FormControl>
-                            <SelectContent>
-                                <SelectItem value="gaokao-english-continuation">高考英语 读后续写</SelectItem>
-                                <SelectItem value="gaokao-english-practical">高考英语 应用文</SelectItem>
-                                <SelectItem value="gaokao-chinese-composition">高考语文 作文</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
                     </FormItem>
                 )} />
             </CardContent>

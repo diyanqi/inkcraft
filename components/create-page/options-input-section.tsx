@@ -43,11 +43,12 @@ export function OptionsInputSection({ form }: OptionsInputSectionProps) {
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl><SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="选择模型" /></SelectTrigger></FormControl>
                             <SelectContent>
-                                <SelectItem value="deepseek">Deepseek-v3</SelectItem>
+                                {/* <SelectItem value="deepseek">Deepseek-v3</SelectItem> */}
                                 <SelectItem value="llama">Llama 3.1 70B</SelectItem>
-                                <SelectItem value="qwen">通义千问 2.5</SelectItem>
-                                <SelectItem value="glm">智谱清言 GLM-4</SelectItem>
-                                <SelectItem value="gemini">Google Gemini 2</SelectItem>
+                                <SelectItem value="qwen">通义千问 3</SelectItem>
+                                {/* <SelectItem value="glm">智谱清言 GLM-4</SelectItem> */}
+                                <SelectItem value="gemini">Gemini 2</SelectItem>
+                                <SelectItem value="gemini-lite">Gemini 2 Lite</SelectItem>
                             </SelectContent>
                         </Select>
                         <FormMessage />

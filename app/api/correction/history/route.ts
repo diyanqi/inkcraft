@@ -14,7 +14,7 @@ export async function GET(request: Request) {
 
   try {
     const util = new CorrectionUtil();
-    const history = await util.getByUserEmail(
+    const history = await util.getHistorySummaryByUserEmail(
       session.user.email,
       limit ? parseInt(limit) : 7,
       skip ? parseInt(skip) : 0

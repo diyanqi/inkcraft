@@ -42,6 +42,7 @@ const getModelDisplayName = (value: string) => {
         "llama": "Meta Llama",
         "deepseek": "Deepseek-v3",
         "gemini": "Google Gemini 2",
+        "gemini-lite": "Google Gemini 2 Lite",
         "qwen": "通义千问",
         "glm": "智谱清言",
     };

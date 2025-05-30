@@ -31,14 +31,21 @@ export const gemini = createOpenAI({
   compatibility: 'compatible',
 });
 
+export const nvidia = createOpenAI({
+  baseURL: process.env.NVIDIA_API_BASEURL || '',
+  apiKey: process.env.NVIDIA_API_APIKEY || '',
+  compatibility: 'compatible',
+})
+
 const modelMapping = {
-  'llama': openai('@cf/meta/llama-4-scout-17b-16e-instruct'),
+  'llama': nvidia('nvidia/llama-3.3-nemotron-super-49b-v1'),
   'deepseek': deepseek('deepseek-chat'),
-  'qwen': siliconflow('Qwen/Qwen3-8B'),
+  'qwen': nvidia('qwen/qwen3-235b-a22b'),
   'glm': siliconflow('THUDM/GLM-Z1-9B-0414'),
   'gpt4': siliconflow('gpt-3.5-turbo'),
   // 'glm': glm('glm-4-flash-250414'),
   'gemini': gemini('gemini-2.0-flash'),
+  'gemini-lite': gemini('gemini-2.0-flash-lite'),
 }
 
 export function checkModelAvaliability(modelName: string) {

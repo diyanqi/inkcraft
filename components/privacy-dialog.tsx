@@ -71,9 +71,7 @@ export function PrivacyDialog({ open, onOpenChange }: PrivacyDialogProps) {
                 </li>
               </ul>
             </p>
-             <p className="mt-2 font-bold text-red-600">
-               【重要提示：请根据实际情况确认是否还收集其他类型的数据，并在此处补充说明。】
-            </p>
+             
 
 
             <h3 className="text-base font-semibold mt-4">3. 信息的使用目的</h3>
@@ -89,9 +87,7 @@ export function PrivacyDialog({ open, onOpenChange }: PrivacyDialogProps) {
                 <li>**内部运营：** 进行内部研究、数据分析、审计等，以管理和运营我们的业务。</li>
               </ul>
             </p>
-            <p className="mt-2 font-bold text-red-600">
-               【重要提示：如果你会使用数据进行市场营销（如发送推广邮件），需要在此处明确说明，并提供用户选择退出的机制。】
-            </p>
+            
 
             <h3 className="text-base font-semibold mt-4">4. 信息的共享与披露</h3>
             <p>
@@ -122,9 +118,7 @@ export function PrivacyDialog({ open, onOpenChange }: PrivacyDialogProps) {
             <p className="mt-2">
               【重要提示：如果你的用户可能来自中国大陆以外，特别是欧盟等有严格数据保护法律的地区，需要说明数据会传输到美国或其他地区，并提及采取了哪些合法机制来确保数据传输的合规性，例如是否使用了标准合同条款 (SCCs)。】
             </p>
-            <p className="mt-2 font-bold text-red-600">
-               【请根据实际情况和法律建议补充或修改国际数据传输相关的说明。】
-            </p>
+            
 
             <h3 className="text-base font-semibold mt-4">6. 数据安全</h3>
             <p>
@@ -144,9 +138,7 @@ export function PrivacyDialog({ open, onOpenChange }: PrivacyDialogProps) {
              <p className="mt-2 italic text-muted-foreground">
                例如，您的账户信息在您账户有效期间会一直保留；您提交的作文内容在您使用服务期间会保留，以便为您提供批改历史等功能，您删除账户后，相关用户内容将在合理的时间内（例如，【请填写具体时间，如30天】）从我们的活动数据库中删除，但可能在备份系统中保留更长时间，最终将被安全销毁。与支付相关的记录将根据适用的财务和税务法律法规进行保留。
             </p>
-             <p className="mt-2 font-bold text-red-600">
-               【请根据你的实际数据保留策略和法律建议填写或修改上述说明。】
-            </p>
+             
 
 
             <h3 className="text-base font-semibold mt-4">8. 您的权利</h3>
@@ -167,15 +159,11 @@ export function PrivacyDialog({ open, onOpenChange }: PrivacyDialogProps) {
             </p>
 
             <h3 className="text-base font-semibold mt-4">9. 儿童隐私</h3>
-             <p className="font-bold text-red-600">
-               【重要提示：服务条款提到“无年龄限制”，这在隐私政策中需要特别说明。请根据实际情况填写以下内容。】
-            </p>
+             
             <p className="mt-2 italic text-muted-foreground">
                本服务面向所有希望改进写作的用户，包括学生。如果您是未满14周岁的未成年人（或其他当地法律规定的年龄），请在您的父母或法定监护人的指导和同意下使用本服务。我们不会在明知的情况下收集未满14周岁未成年人的个人信息，除非获得其父母或法定监护人的同意。如果您的监护人认为我们未经同意收集了未成年人的个人信息，请通过本政策提供的联系方式与我们联系，我们将尽快删除相关数据。
             </p>
-             <p className="mt-2 font-bold text-red-600">
-               【请根据实际情况和法律建议填写或修改上述儿童隐私说明。】
-            </p>
+             
 
             <h3 className="text-base font-semibold mt-4">10. 第三方网站链接</h3>
             <p>
@@ -238,9 +226,7 @@ export function PrivacyDialog({ open, onOpenChange }: PrivacyDialogProps) {
                 </li>
               </ul>
             </p>
-             <p className="mt-2 font-bold text-red-600">
-               【重要提示：请根据实际情况确认是否还收集其他类型的数据，并在此处补充说明。】
-            </p>
+             
 
 
             <h3 className="text-base font-semibold mt-4">3. 信息的使用目的</h3>
@@ -256,9 +242,7 @@ export function PrivacyDialog({ open, onOpenChange }: PrivacyDialogProps) {
                 <li>**内部运营：** 进行内部研究、数据分析、审计等，以管理和运营我们的业务。</li>
               </ul>
             </p>
-            <p className="mt-2 font-bold text-red-600">
-               【重要提示：如果你会使用数据进行市场营销（如发送推广邮件），需要在此处明确说明，并提供用户选择退出的机制。】
-            </p>
+            
 
             <h3 className="text-base font-semibold mt-4">4. 信息的共享与披露</h3>
             <p>
@@ -289,9 +273,7 @@ export function PrivacyDialog({ open, onOpenChange }: PrivacyDialogProps) {
             <p className="mt-2">
               【重要提示：如果你的用户可能来自中国大陆以外，特别是欧盟等有严格数据保护法律的地区，需要说明数据会传输到美国或其他地区，并提及采取了哪些合法机制来确保数据传输的合规性，例如是否使用了标准合同条款 (SCCs)。】
             </p>
-            <p className="mt-2 font-bold text-red-600">
-               【请根据实际情况和法律建议补充或修改国际数据传输相关的说明。】
-            </p>
+            
 
             <h3 className="text-base font-semibold mt-4">6. 数据安全</h3>
             <p>
@@ -311,9 +293,7 @@ export function PrivacyDialog({ open, onOpenChange }: PrivacyDialogProps) {
              <p className="mt-2 italic text-muted-foreground">
                例如，您的账户信息在您账户有效期间会一直保留；您提交的作文内容在您使用服务期间会保留，以便为您提供批改历史等功能，您删除账户后，相关用户内容将在合理的时间内（例如，【请填写具体时间，如30天】）从我们的活动数据库中删除，但可能在备份系统中保留更长时间，最终将被安全销毁。与支付相关的记录将根据适用的财务和税务法律法规进行保留。
             </p>
-             <p className="mt-2 font-bold text-red-600">
-               【请根据你的实际数据保留策略和法律建议填写或修改上述说明。】
-            </p>
+             
 
 
             <h3 className="text-base font-semibold mt-4">8. 您的权利</h3>
@@ -334,15 +314,11 @@ export function PrivacyDialog({ open, onOpenChange }: PrivacyDialogProps) {
             </p>
 
             <h3 className="text-base font-semibold mt-4">9. 儿童隐私</h3>
-             <p className="font-bold text-red-600">
-               【重要提示：服务条款提到“无年龄限制”，这在隐私政策中需要特别说明。请根据实际情况填写以下内容。】
-            </p>
+             
             <p className="mt-2 italic text-muted-foreground">
                本服务面向所有希望改进写作的用户，包括学生。如果您是未满14周岁的未成年人（或其他当地法律规定的年龄），请在您的父母或法定监护人的指导和同意下使用本服务。我们不会在明知的情况下收集未满14周岁未成年人的个人信息，除非获得其父母或法定监护人的同意。如果您的监护人认为我们未经同意收集了未成年人的个人信息，请通过本政策提供的联系方式与我们联系，我们将尽快删除相关数据。
             </p>
-             <p className="mt-2 font-bold text-red-600">
-               【请根据实际情况和法律建议填写或修改上述儿童隐私说明。】
-            </p>
+             
 
             <h3 className="text-base font-semibold mt-4">10. 第三方网站链接</h3>
             <p>

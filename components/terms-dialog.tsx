@@ -127,9 +127,7 @@ export function TermsDialog({ open, onOpenChange }: TermsDialogProps) {
             <p className="mt-2">
               在适用法律允许的最大范围内，对于因使用或无法使用本服务而产生的任何直接、间接、附带、特殊、惩罚性或后果性损害（包括但不限于利润损失、数据丢失、业务中断等），无论基于合同、侵权或其他任何法律理论，即使我们已被告知发生此类损害的可能性，我们均不承担责任。
             </p>
-            <p className="mt-2 font-bold text-red-600">
-              【重要提示：此处应根据实际情况和法律建议考虑是否设定责任上限。你之前表示不存在赔偿，但法律上完全排除责任可能无效。】
-            </p>
+            
 
             <h3 className="text-base font-semibold mt-4">9. 条款的修改</h3>
             <p>
@@ -137,15 +135,11 @@ export function TermsDialog({ open, onOpenChange }: TermsDialogProps) {
             </p>
 
             <h3 className="text-base font-semibold mt-4">10. 争议解决与适用法律</h3>
-            <p className="font-bold text-red-600">
-               【重要提示：此处需要你提供具体的争议解决方式和适用法律。例如：】
-            </p>
+            
             <p className="mt-2 italic text-muted-foreground">
               本条款的解释、效力及争议的解决，均适用中华人民共和国大陆地区的法律。因使用本服务而产生的或与本条款相关的任何争议，应首先通过友好协商解决；协商不成的，任何一方均有权向 [你的公司所在地或指定地，例如：你公司注册地或主要运营地所在的人民法院] 提起诉讼。
             </p>
-             <p className="mt-2 font-bold text-red-600">
-               【请务必根据你的实际情况和法律建议填写或修改上述争议解决条款。】
-            </p>
+             
 
             <h3 className="text-base font-semibold mt-4">11. 其他</h3>
             <p>
@@ -275,9 +269,7 @@ export function TermsDialog({ open, onOpenChange }: TermsDialogProps) {
             <p className="mt-2 italic text-muted-foreground">
               本条款的解释、效力及争议的解决，均适用中华人民共和国大陆地区的法律。因使用本服务而产生的或与本条款相关的任何争议，应首先通过友好协商解决；协商不成的，任何一方均有权向 [你的公司所在地或指定地，例如：你公司注册地或主要运营地所在的人民法院] 提起诉讼。
             </p>
-             <p className="mt-2 font-bold text-red-600">
-               【请务必根据你的实际情况和法律建议填写或修改上述争议解决条款。】
-            </p>
+             
 
             <h3 className="text-base font-semibold mt-4">11. 其他</h3>
             <p>
