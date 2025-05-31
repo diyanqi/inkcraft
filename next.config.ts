@@ -14,6 +14,23 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true, // 忽略 TypeScript 检查
   },
+  async headers() {
+    return [
+      {
+        source: '/slidev/:uuid*', // Apply to the slidev dynamic route
+        headers: [
+          {
+            key: 'Cross-Origin-Embedder-Policy',
+            value: 'require-corp',
+          },
+          {
+            key: 'Cross-Origin-Opener-Policy',
+            value: 'same-origin',
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
