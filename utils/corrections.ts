@@ -95,7 +95,7 @@ export class CorrectionUtil {
       if (error) {
          // If single() returns no row, error.code is 'PGRST116'.
          // We might want to return null instead of throwing in this specific case.
-         if ((error as any).code === 'PGRST116') return null;
+         if (error && typeof error === 'object' && 'code' in error && error.code === 'PGRST116') return null;
          throw error;
       }
       return data as Correction | null; // Cast to expected type
@@ -115,7 +115,7 @@ export class CorrectionUtil {
         .single();
 
       if (error) {
-         if ((error as any).code === 'PGRST116') return null;
+         if (error && typeof error === 'object' && 'code' in error && error.code === 'PGRST116') return null;
          throw error;
       }
       return data as Correction | null; // Cast to expected type
@@ -136,7 +136,7 @@ export class CorrectionUtil {
         .single();
 
       if (error) {
-         if ((error as any).code === 'PGRST116') return null;
+         if (error && typeof error === 'object' && 'code' in error && error.code === 'PGRST116') return null;
          throw error;
       }
       return data as Correction | null; // Cast to expected type
@@ -157,7 +157,7 @@ export class CorrectionUtil {
         .single();
 
       if (error) {
-         if ((error as any).code === 'PGRST116') return null;
+         if (error && typeof error === 'object' && 'code' in error && error.code === 'PGRST116') return null;
          throw error;
       }
       return data as Correction | null; // Cast to expected type
@@ -216,7 +216,7 @@ export class CorrectionUtil {
         .single();
 
       if (error) {
-         if ((error as any).code === 'PGRST116') return null;
+         if (error && typeof error === 'object' && 'code' in error && error.code === 'PGRST116') return null;
          throw error;
       }
       return data as Correction | null; // Cast to expected type
@@ -238,8 +238,7 @@ export class CorrectionUtil {
     try {
       let query = this.supabase
         .from('corrections')
-        // 核心改变：只选择 title 和 uuid 字段
-        .select('title, uuid, icon')
+        .select('title, uuid, icon, public')
         .eq('user_email', userEmail)
         .order('created_at', { ascending: false }); // 保持按创建时间倒序
 
@@ -261,4 +260,20 @@ export class CorrectionUtil {
       throw error;
     }
   }
+}
+
+// 工具函数
+export function generateShareLink(baseUrl: string, uuid: string): string {
+    return `${baseUrl}/shared-correction/${uuid}`;
+}
+
+export function copyToClipboard(text: string): void {
+    navigator.clipboard.writeText(text).then(
+        () => {
+            console.log("复制成功:", text);
+        },
+        (err) => {
+            console.error("复制失败:", err);
+        }
+    );
 }

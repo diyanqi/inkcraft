@@ -13,7 +13,7 @@ interface CorrectionHistoryItem {
   id: number; // Based on your API output
   status?: string; // Example, if your API includes it
   created_at?: string; // Example, if your API includes it
-  // ... other properties
+  public: boolean; // 添加 public 属性，用于表示分享状态
 }
 
 // Update the return type interface to include refetch
@@ -86,11 +86,14 @@ export function useCorrectionHistory(): UseCorrectionHistoryResult {
           setHasMore(false); // Stop loading more
       }
 
-    } catch (error: any) {
-      console.error("Failed to fetch history:", error);
-      // Show the error message from the caught error
-      toast.error(error.message || "Failed to fetch history.");
-      setHasMore(false); // Stop loading more on error
+    } catch (error: unknown) {
+        if (error instanceof Error) {
+            console.error("Failed to fetch history:", error);
+            toast.error(error.message || "Failed to fetch history.");
+        } else {
+            console.error("Unexpected error:", error);
+            toast.error("Failed to fetch history: Unknown error.");
+        }
     } finally {
       setLoading(false);
     }
@@ -107,7 +110,6 @@ export function useCorrectionHistory(): UseCorrectionHistoryResult {
   // Function to trigger a full reload from the first page
   const refetch = useCallback(async () => {
       setPage(0); // Reset page to 0 for a full reload
-      setHistory([]); // Clear current history while refetching
       setHasMore(true); // Assume there might be more after refetch
       // The useEffect will trigger the fetch for page 0
   }, []); // No dependencies needed as it only updates state

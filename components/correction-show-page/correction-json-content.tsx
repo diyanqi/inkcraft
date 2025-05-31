@@ -139,7 +139,7 @@ export default function CorrectionJsonContent({
         <TabsTrigger value="topic_material">话题语料</TabsTrigger>
         <TabsTrigger value="strengthen_foundation">夯实基础</TabsTrigger> {/* Added new tab */}
         <TabsTrigger value="writing_upgrade">续写升级</TabsTrigger>
-        <TabsTrigger value="pure_upgrade_text">升格文纯享版</TabsTrigger>
+        <TabsTrigger value="pure_upgrade_text">全文升格</TabsTrigger>
       </TabsList>
 
       {/* Tab1: 原文与续写 */}

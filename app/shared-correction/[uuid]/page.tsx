@@ -1,5 +1,3 @@
-// app/dashboard/correction/[uuid]/page.tsx
-
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
@@ -28,11 +26,9 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
-// Removed unified, remarkParse, remarkDocx, saveAs - now in utils/correction-export
+// Removed Switch as it's replaced by Select for export scope
 import CorrectionMarkdownContent from "@/components/correction-show-page/correction-markdown-content";
 import CorrectionJsonContent from "@/components/correction-show-page/correction-json-content";
-// Removed findContextSimple, mdBlockquote - now in utils/markdownUtils (imported by export util)
 import { cn } from "@/lib/utils"; // For Combobox
 import {
     Command,
@@ -40,7 +36,7 @@ import {
     CommandGroup,
     CommandList,
     CommandItem,
-    CommandInput, // <-- Import CommandItem
+    CommandInput,
 } from "@/components/ui/command"; // For Combobox
 import {
     Popover,
@@ -48,19 +44,16 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover"; // For Combobox
 
-// Import the custom hook and export utility
+// Import custom hook and export utility
 import { useCorrection } from "@/hooks/use-correction";
-import { exportCorrectionReport } from "@/utils/correction-export";
+import { exportCorrectionReport } from "@/utils/correction-export"; // Added generateSlidevPresentation
+import { generateSlidevPresentation } from "@/utils/slidev-presentation-generator";
 // Import types and constants
 import { SCORE_LABELS } from "@/types/correction";
-
+import { saveAs } from "file-saver"; // Import saveAs for presentation download
+import { toast } from "sonner";
 
 // Markdown components definition (kept here as fallback for plain markdown content)
-// If CorrectionMarkdownContent is the *only* place using these, move them there.
-// Given the original code defined them here and passed them, keeping them here
-// or moving them to a shared place (if other pages use them) is an option.
-// For now, let's keep them here as they were originally defined in the page.
-// Note: The 'any' suppression might be related to the types expected by react-markdown's Components.
 const markdownComponents: Components = {
     h1: ({ node: _node, ...props }) => <h1 className="mt-8 scroll-m-20 text-2xl font-semibold tracking-tight first:mt-0" {...props} />,
     h2: ({ node: _node, ...props }) => <h2 className="mt-10 scroll-m-20 border-b pb-2 text-xl font-semibold tracking-tight transition-colors first:mt-0" {...props} />,
@@ -97,7 +90,6 @@ export default function CorrectionDetailPage() {
     const params = useParams();
     const uuid = params?.uuid as string | undefined;
 
-    // Use the custom hook for data fetching and state management
     const {
         loading,
         error,
@@ -109,47 +101,117 @@ export default function CorrectionDetailPage() {
         currentDisplayJson,
     } = useCorrection(uuid);
 
-    // Local state for export dialog and display options
     const [exportFormat, setExportFormat] = useState("md");
     const [loadingExport, setLoadingExport] = useState(false);
     const [openExportDialog, setOpenExportDialog] = useState(false);
     const [showOriginalInPureUpgrade, setShowOriginalInPureUpgrade] = useState(true);
     const [showAnnotationsInPureUpgrade, setShowAnnotationsInPureUpgrade] = useState(true);
-    const [exportAllEssays, setExportAllEssays] = useState(false); // For export dialog switch
 
-    // Added states for Strengthen Foundation display options
+    const [exportScope, setExportScope] = useState<string>("all_combined");
+
     const [showOriginalInStrengthen, setShowOriginalInStrengthen] = useState(true);
     const [showAnnotationsInStrengthen, setShowAnnotationsInStrengthen] = useState(true);
 
-
-    // Combobox states
     const [comboboxOpen, setComboboxOpen] = React.useState(false);
+    const [loadingPresentation, setLoadingPresentation] = useState(false);
 
     const essayOptions = parsedFullJsonContent?.essays?.map((_, index) => ({
         value: index.toString(),
         label: `习作 ${index + 1}`,
     })) || [];
 
+    const exportFormContent = (
+        <>
+            <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="export-format" className="text-right col-span-1">
+                    格式
+                </Label>
+                <Select onValueChange={setExportFormat} value={exportFormat}>
+                    <SelectTrigger id="export-format" className="col-span-3">
+                        <SelectValue placeholder="选择格式" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="md">Markdown (.md)</SelectItem>
+                        <SelectItem value="pdf">PDF (.pdf)</SelectItem>
+                        <SelectItem value="docx">Word (.docx)</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+            {isBatchCorrection && (
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="export-scope" className="text-right col-span-1">
+                        选项
+                    </Label>
+                    <Select onValueChange={setExportScope} value={exportScope}>
+                        <SelectTrigger id="export-scope" className="col-span-3">
+                            <SelectValue placeholder="选择导出范围" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all_combined">导出所有 (整合至单文件)</SelectItem>
+                            <SelectItem value="current">仅导出当前篇</SelectItem>
+                            <SelectItem value="all_separate">导出所有 (每篇独立文件)</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+            )}
+        </>
+    );
+
     const handleExportClick = () => {
-         if (!correction || !parsedFullJsonContent) return;
+        if (!correction || !parsedFullJsonContent) return;
+
+        const shouldExportAll = exportScope === "all_combined" || exportScope === "all_separate";
+        const combineFiles = exportScope === "all_combined";
 
         exportCorrectionReport({
             correction,
             parsedFullJsonContent,
             exportFormat,
-            exportAllEssays,
+            exportAllEssays: shouldExportAll,
+            combineFiles: combineFiles,
             selectedEssayIndex,
             showOriginalInPureUpgrade,
             showAnnotationsInPureUpgrade,
-            showOriginalInStrengthen, // Pass new option
-            showAnnotationsInStrengthen, // Pass new option
+            showOriginalInStrengthen,
+            showAnnotationsInStrengthen,
             setLoadingExport,
             setOpenExportDialog,
+            toast,
         });
     };
 
+    const handlePresentationExportClick = async () => {
+        if (!correction || !parsedFullJsonContent) {
+            toast("批改数据加载中或不存在，无法生成演示文稿。", { type: "error" });
+            return;
+        }
+        if (!parsedFullJsonContent.question && !parsedFullJsonContent.interpretation) {
+            toast("缺少真题回顾或写作解析部分，无法生成通用演示文稿。", { type: "error" });
+            return;
+        }
 
-    if (loading) { /* ... Skeleton UI (no change) ... */
+        setLoadingPresentation(true);
+        try {
+            const slidevContent = generateSlidevPresentation(
+                parsedFullJsonContent, // Use the full parsed content for public parts (question, interpretation)
+                correction.title
+            );
+
+            const fileNameBase = `${correction.title.replace(/\s+/g, "_")}_通用演示文稿`;
+            const blob = new Blob([slidevContent], { type: "text/markdown;charset=utf-8" });
+            saveAs(blob, `${fileNameBase}.md`);
+            toast(`已成功生成通用演示文稿: ${fileNameBase}.md。您可以使用 Slidev 工具打开此文件。`);
+
+        } catch (error) {
+            console.error("生成演示文稿错误:", error);
+            toast(`生成演示文稿失败: ${error instanceof Error ? error.message : "未知错误"}.`, { type: "error" });
+        } finally {
+            setLoadingPresentation(false);
+        }
+    };
+
+
+    if (loading) {
         return (
             <article className="w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <header className="mb-8">
@@ -179,10 +241,9 @@ export default function CorrectionDetailPage() {
     if (error) return <div className="text-red-500 text-center mt-10 p-4">{error}</div>;
     if (!correction) return <div className="text-center mt-10">未找到批改记录</div>;
 
-    // Current essay score display (only show if batch and essay selected)
     const currentEssayDisplayScore = isBatchCorrection && parsedFullJsonContent?.essays && parsedFullJsonContent.essays.length > selectedEssayIndex && selectedEssayIndex >= 0
         ? parsedFullJsonContent.essays[selectedEssayIndex].score
-        : undefined; // Undefined means don't show this specific score
+        : undefined;
 
     return (
         <article className="w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -224,7 +285,7 @@ export default function CorrectionDetailPage() {
                                             {essayOptions.map((option) => (
                                                 <CommandItem
                                                     key={option.value}
-                                                    value={option.label} // Search by label
+                                                    value={option.label}
                                                     onSelect={() => {
                                                         setSelectedEssayIndex(parseInt(option.value));
                                                         setComboboxOpen(false);
@@ -245,7 +306,7 @@ export default function CorrectionDetailPage() {
                             </PopoverContent>
                         </Popover>
                         {currentEssayDisplayScore !== undefined && (
-                             <span className="text-lg font-semibold text-blue-600">
+                            <span className="text-lg font-semibold text-blue-600">
                                 当前习作: {currentEssayDisplayScore} 分
                             </span>
                         )}
@@ -260,51 +321,32 @@ export default function CorrectionDetailPage() {
                     <div>用户：{correction.user_email}</div>
                 </div>
                 <div className="flex flex-wrap gap-x-6 -mb-3 mt-3">
-                    <div className="ml-auto">
+                    <div className="ml-auto flex items-center gap-2">
+                        <Button
+                            variant="secondary"
+                            onClick={handlePresentationExportClick}
+                            disabled={
+                                loadingPresentation ||
+                                !parsedFullJsonContent ||
+                                (!parsedFullJsonContent.question && !parsedFullJsonContent.interpretation)
+                            }
+                        >
+                            {loadingPresentation ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />生成中...</> : "演示文稿"}
+                        </Button>
                         <Dialog open={openExportDialog} onOpenChange={setOpenExportDialog}>
                             <DialogTrigger asChild>
-                                <Button variant="secondary">导出</Button>
+                                <Button variant="secondary" disabled={!parsedFullJsonContent}>导出</Button>
                             </DialogTrigger>
                             <DialogContent className="sm:max-w-[425px]">
                                 <DialogHeader>
                                     <DialogTitle>导出报告</DialogTitle>
                                     <DialogDescription>
-                                        选择格式并导出。{isBatchCorrection ? "可选择导出当前选中或所有习作。" : ""}
+                                        选择导出格式和选项。
+                                        {isBatchCorrection ? ` 可选择导出当前习作，或将所有习作整合为单一文件，或为每篇习作生成独立文件。` : ""}
                                     </DialogDescription>
                                 </DialogHeader>
                                 <div className="grid gap-4 py-4">
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                        <Label htmlFor="export-format" className="text-right col-span-1">
-                                            格式
-                                        </Label>
-                                        <Select onValueChange={setExportFormat} value={exportFormat}>
-                                            <SelectTrigger id="export-format" className="col-span-3">
-                                                <SelectValue placeholder="选择格式" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="md">Markdown (.md)</SelectItem>
-                                                <SelectItem value="pdf">PDF (.pdf)</SelectItem>
-                                                <SelectItem value="docx">Word (.docx)</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    {isBatchCorrection && (
-                                        <div className="grid grid-cols-4 items-center gap-4">
-                                            <Label htmlFor="export-all" className="text-right col-span-1">
-                                                范围
-                                            </Label>
-                                            <div className="col-span-3 flex items-center space-x-2">
-                                                <Switch
-                                                    id="export-all"
-                                                    checked={exportAllEssays}
-                                                    onCheckedChange={setExportAllEssays}
-                                                />
-                                                <Label htmlFor="export-all">
-                                                    {exportAllEssays ? "导出所有习作 (每个习作一个文件)" : "仅导出当前选中习作"}
-                                                </Label>
-                                            </div>
-                                        </div>
-                                    )}
+                                    {exportFormContent}
                                 </div>
                                 <DialogFooter>
                                     <DialogClose asChild>
@@ -331,13 +373,12 @@ export default function CorrectionDetailPage() {
                         setShowOriginalInPureUpgrade={setShowOriginalInPureUpgrade}
                         showAnnotationsInPureUpgrade={showAnnotationsInPureUpgrade}
                         setShowAnnotationsInPureUpgrade={setShowAnnotationsInPureUpgrade}
-                         showOriginalInStrengthen={showOriginalInStrengthen} // Pass new state
-                        setShowOriginalInStrengthen={setShowOriginalInStrengthen} // Pass new state setter
-                        showAnnotationsInStrengthen={showAnnotationsInStrengthen} // Pass new state
-                        setShowAnnotationsInStrengthen={setShowAnnotationsInStrengthen} // Pass new state setter
+                        showOriginalInStrengthen={showOriginalInStrengthen}
+                        setShowOriginalInStrengthen={setShowOriginalInStrengthen}
+                        showAnnotationsInStrengthen={showAnnotationsInStrengthen}
+                        setShowAnnotationsInStrengthen={setShowAnnotationsInStrengthen}
                     />
-                ) : !isBatchCorrection && correction.content ? ( // Fallback for non-JSON single correction
-                    // Fix: Remove the components prop
+                ) : !isBatchCorrection && correction.content ? (
                     <CorrectionMarkdownContent content={correction.content} />
                 ) : (
                     <div className="text-center py-10">

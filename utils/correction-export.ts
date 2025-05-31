@@ -6,6 +6,7 @@ import remarkDocx from "remark-docx";
 import { saveAs } from "file-saver";
 import { Correction, CorrectionJson, SCORE_LABELS } from "@/types/correction";
 import { generateRichMarkdownReport } from "./markdown-report-generator"; // Import the generator
+import { toast } from "sonner";
 
 interface ExportCorrectionReportParams {
     correction: Correction;
@@ -20,6 +21,7 @@ interface ExportCorrectionReportParams {
     showAnnotationsInStrengthen: boolean;
     setLoadingExport: (loading: boolean) => void;
     setOpenExportDialog: (open: boolean) => void;
+    toast: typeof toast;
 }
 
 export async function exportCorrectionReport({
@@ -35,6 +37,7 @@ export async function exportCorrectionReport({
     showAnnotationsInStrengthen,
     setLoadingExport,
     setOpenExportDialog,
+    toast,
 }: ExportCorrectionReportParams) {
     setLoadingExport(true);
 
@@ -83,15 +86,19 @@ export async function exportCorrectionReport({
                     if (!response.ok) throw new Error(`PDF生成失败 (整合报告): ${response.statusText}`);
                     saveAs(await response.blob(), `${fileNameBase}.pdf`);
                 } else if (exportFormat === "docx") {
-                    // @ts-expect-error
+                    // @ts-expect-error: remark-docx output type is not correctly inferred
                     const doc = await unified().use(remarkParse).use(remarkDocx, { output: "blob" }).process(combinedMarkdownContent);
                     saveAs(await doc.result as Blob, `${fileNameBase}.docx`);
                 }
 
                 if (essays.length > 0) {
-                    alert(`已成功请求导出整合报告，包含 ${essays.length} 篇习作。`);
+                    toast("导出成功", {
+                        description: `已成功请求导出整合报告，包含 ${essays.length} 篇习作。`,
+                    });
                 } else {
-                    alert(`没有习作内容可导出。`);
+                    toast("导出提示", {
+                        description: `没有习作内容可导出。`,
+                    });
                 }
 
             } else {
@@ -125,15 +132,19 @@ export async function exportCorrectionReport({
                             if (!response.ok) throw new Error(`PDF生成失败 (习作 ${i+1}): ${response.statusText}`);
                             saveAs(await response.blob(), `${fileNameBase}.pdf`);
                         } else if (exportFormat === "docx") {
-                            // @ts-expect-error
+                            // @ts-expect-error: remark-docx output type is not correctly inferred
                             const doc = await unified().use(remarkParse).use(remarkDocx, { output: "blob" }).process(markdownContentToExport);
                             saveAs(await doc.result as Blob, `${fileNameBase}.docx`);
                         }
                         if (exportFormat === "pdf" && essays.length > 1) await new Promise(resolve => setTimeout(resolve, 500));
                     }
-                    alert(`已成功请求导出 ${essays.length} 篇习作。`);
+                    toast("导出成功", {
+                        description: `已成功请求导出 ${essays.length} 篇习作。`,
+                    });
                 } else {
-                     alert(`没有习作内容可导出。`);
+                     toast("导出提示", {
+                        description: `没有习作内容可导出。`,
+                    });
                 }
             }
         } else {
@@ -174,16 +185,20 @@ export async function exportCorrectionReport({
                 if (!response.ok) throw new Error(`PDF生成失败: ${response.statusText}`);
                 saveAs(await response.blob(), `${fileNameBase}.pdf`);
             } else if (exportFormat === "docx") {
-                // @ts-expect-error
+                // @ts-expect-error: remark-docx output type is not correctly inferred
                 const doc = await unified().use(remarkParse).use(remarkDocx, { output: "blob" }).process(markdownContentToExport);
                 saveAs(await doc.result as Blob, `${fileNameBase}.docx`);
             }
-            alert(`已成功请求导出报告: ${fileNameBase}.${exportFormat}`);
+            toast("导出成功", {
+                description: `已成功请求导出报告: ${fileNameBase}.${exportFormat}`,
+            });
         }
         setOpenExportDialog(false);
     } catch (error) {
         console.error("导出错误:", error);
-        alert(`导出失败: ${error instanceof Error ? error.message : "未知错误"}. 请重试或选择其他格式.`);
+        toast.error("导出失败", {
+            description: `导出失败: ${error instanceof Error ? error.message : "未知错误"}. 请重试或选择其他格式.`,
+        });
     } finally {
         setLoadingExport(false);
     }

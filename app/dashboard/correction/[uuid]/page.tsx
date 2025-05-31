@@ -51,6 +51,7 @@ import { generateSlidevPresentation } from "@/utils/slidev-presentation-generato
 // Import types and constants
 import { SCORE_LABELS } from "@/types/correction";
 import { saveAs } from "file-saver"; // Import saveAs for presentation download
+import { toast } from "sonner";
 
 // Markdown components definition (kept here as fallback for plain markdown content)
 const markdownComponents: Components = {
@@ -175,16 +176,17 @@ export default function CorrectionDetailPage() {
             showAnnotationsInStrengthen,
             setLoadingExport,
             setOpenExportDialog,
+            toast,
         });
     };
 
     const handlePresentationExportClick = async () => {
         if (!correction || !parsedFullJsonContent) {
-            alert("批改数据加载中或不存在，无法生成演示文稿。");
+            toast.error("批改数据加载中或不存在，无法生成演示文稿。");
             return;
         }
         if (!parsedFullJsonContent.question && !parsedFullJsonContent.interpretation) {
-            alert("缺少真题回顾或写作解析部分，无法生成通用演示文稿。");
+            toast.error("缺少真题回顾或写作解析部分，无法生成通用演示文稿。");
             return;
         }
 
@@ -198,11 +200,11 @@ export default function CorrectionDetailPage() {
             const fileNameBase = `${correction.title.replace(/\s+/g, "_")}_通用演示文稿`;
             const blob = new Blob([slidevContent], { type: "text/markdown;charset=utf-8" });
             saveAs(blob, `${fileNameBase}.md`);
-            alert(`已成功生成通用演示文稿: ${fileNameBase}.md。您可以使用 Slidev 工具打开此文件。`);
+            toast(`已成功生成通用演示文稿: ${fileNameBase}.md。您可以使用 Slidev 工具打开此文件。`);
 
         } catch (error) {
             console.error("生成演示文稿错误:", error);
-            alert(`生成演示文稿失败: ${error instanceof Error ? error.message : "未知错误"}.`);
+            toast.error(`生成演示文稿失败: ${error instanceof Error ? error.message : "未知错误"}.`);
         } finally {
             setLoadingPresentation(false);
         }
